@@ -316,7 +316,6 @@ def PPTX_table_display_photoID_in_cell(sql_obj,le_document,col_format,le_header,
 #-------------------------------------------------------------------------------------------------------------
         isNew = table_row[0]
         # compute table height after new row 
-        #if table_row[3][0][12] == "photoID": 
         h_row = PPTX_table_row_height(table_row[3])
         htable = htable + h_row
 #---------------------------------------------------------------------------------------------------------- 
@@ -379,7 +378,7 @@ def PPTX_table_row_display_photoID_in_cell(sql_obj,la_table,table_row,*args):
         if le_content :
             if not isinstance(le_content,str) and not isinstance(le_content,list) and not isinstance(le_content,int):la_h = table_cell[0]
     la_table.rows[n_last].height = Mm(la_h)
-
+    
     #la_table.rows[n_last].height = Mm(PPTX_table_row_height(table_cells))
 #----------------------------------------------------------------------------------------------------------  
     c1 = n_col - n_FixLast
@@ -1705,7 +1704,7 @@ def PPTX_biographies_light_table(sql_obj,le_document,MH_personnes,box_sommaire):
             clef = f'{MH_personne.indi_id}{le_type}{MH_cible.indi_id}{n_level}'
             if clef not in clefs_MH_personnes and not isinstance(item[0],str): 
                 clefs_MH_personnes.append(clef)
-                clean_list.append([MH_personne,f'{n_level}|{MH_personne.nom.upper()}',la_lignée_texte,la_lignée_idx,
+                clean_list.append([MH_personne,f'{n_level}|{text_personne(MH_personne,"nom").upper()}',la_lignée_texte,la_lignée_idx,
                                    le_type,f'{MH_cible.nom} {MH_cible.prenom} {MH_cible.prenoms}'])
     
     if clean_list:
@@ -2231,7 +2230,7 @@ def PPTX_descendant_arbre_table(sql_obj,le_document,MH_personne,couple_ref,les_s
         if valeur: 
             if isinstance(clef,str): clef =clef.lower()
             if clef == "n_level_start" : n_level_start = valeur
-#-------------------------------------------------------------------------------------------------------------  
+    #-------------------------------------------------------------------------------------------------------------  
     MH_entourages,le_level_max = get_personne_entourage(sql_obj,MH_personne,n_level_start,loption)
     # list(level, Adult1, Adult2, Année naissance)
     if MH_entourages:
@@ -2246,7 +2245,7 @@ def PPTX_descendant_arbre_table(sql_obj,le_document,MH_personne,couple_ref,les_s
                 return
         
         couple_ref = [MH_entourages[0][1],MH_entourages[0][2]]
-#-------------------------------------------------------------------------------------------------------------
+        #-------------------------------------------------------------------------------------------------------------
         ml = 10
         mb = 0.6
         mt = 0.6
@@ -2268,10 +2267,10 @@ def PPTX_descendant_arbre_table(sql_obj,le_document,MH_personne,couple_ref,les_s
             color_level = f'#{RGBColor(250-10*n_level,250-10*n_level,250-10*n_level)}'
         
             for k in range(0,2*(n_level)): 
-                col_format_level.append([image_size,"center","normal",34,GraySide,White,GraySide,White,1,1,1,1]) 
+                col_format_level.append([image_size,"center","bold",20,Darkblue,White,Darkblue,White,1,1,1,1]) 
 
-            col_format_level.append([image_size,"center","normal",34,GraySide,color_level,GraySide,color_level,1,1,1,1]) 
-            col_format_level.append([image_size,"center","normal",34,GraySide,color_level,GraySide,color_level,1,1,1,1]) 
+            col_format_level.append([image_size,"center","normal",1,GraySide,color_level,GraySide,color_level,1,1,1,1]) 
+            col_format_level.append([image_size,"center","normal",1,GraySide,color_level,GraySide,color_level,1,1,1,1]) 
 
             for k in range(2*(n_level),z_level):  
                 col_format_level.append([image_size,"center","normal",16,Black,color_level,Black,color_level,1,1,1,1])
@@ -2284,9 +2283,9 @@ def PPTX_descendant_arbre_table(sql_obj,le_document,MH_personne,couple_ref,les_s
         max_n_col = len(col_format_level)-1
 
         le_header = [True,True,max_n_col,[col_format_label[0] + [le_titre]],0]
-    #-------------------------------------------------------------------------------------------------------------
+        
+        #-------------------------------------------------------------------------------------------------------------
 
-#-------------------------------------------------------------------------------------------------------------
         display_table = []
         isNew = True
         isEven = True
@@ -2294,8 +2293,7 @@ def PPTX_descendant_arbre_table(sql_obj,le_document,MH_personne,couple_ref,les_s
         temp_suivants = []
         for MH_entourage in MH_entourages:
 
-    # boucle sur chaque personne de l'entourage ---------------------------------------------------------------
-            
+            # boucle sur chaque personne de l'entourage 
             isEven = False if isEven else True
 
             n_level = MH_entourage[0]
@@ -2329,10 +2327,31 @@ def PPTX_descendant_arbre_table(sql_obj,le_document,MH_personne,couple_ref,les_s
                     suivants.append(MH_adult1)
                                                                                        
         if display_table:
-    #------------------------------------------------------------------------------------------------------------------
-            PPTX_table_display_photoID_in_cell(sql_obj,le_document,col_format_level,le_header,display_table,box_sommaire,le_titre,
-                               x_table = ml ,layout = slide_layout_table_image )
-    #------------------------------------------------------------------------------------------------------------------
+        #------------------------------------------------------------------------------------------------------------------
+            x_table = ml
+            y_table = 0
+            la_table = None
+            isFirst = True
+        #-------------------------------------------------------------------------------------------------------------
+            for table_row in display_table:
+        #-------------------------------------------------------------------------------------------------------------
+                isNew = table_row[0]
+                #---------------------------------------------------------------------------------------------------------- 
+                if isNew:
+                
+                    la_page, boxes = PPTX_add_page(le_document,slide_layout_table_image) 
+                    PPTX_add_box(la_page,0,0,x_table,slide_height,bcolor = GraySide)
+
+                    if box_sommaire and isFirst and le_titre: 
+                        PPTX_add_ligne_sommaire(box_sommaire,le_document,la_page,le_titre)
+                        isFirst = False
+
+                    la_table = PPTX_table_add(la_page,col_format_level,x_table,y_table,1,1)
+                    if le_header : PPTX_table_row_display_photoID_in_cell(sql_obj,la_table,le_header,"header")  
+                #----------------------------------------------------------------------------------------------------------    
+                PPTX_table_row_display_photoID_in_cell(sql_obj,la_table,table_row)
+
+        #------------------------------------------------------------------------------------------------------------------
         if suivants:
             for suivant in suivants:
                 PPTX_descendant_arbre_table(sql_obj,le_document,suivant,couple_ref,les_sujets,n_level_max,box_sommaire,"descendant",20)
@@ -2459,7 +2478,7 @@ def PPTX_ascendant_table(sql_obj,le_document,MH_personne,les_lignées,n_level_ma
 
         wtable = slide_width - ml
         wlevel = 10
-        c = [image_size,10,0,16,16,40,40,30,10]
+        c = [image_size,10,0,15,15,40,30,30,10]
         c[2] = wtable - sum(c)
 
         max_n_col = 0
@@ -2473,6 +2492,7 @@ def PPTX_ascendant_table(sql_obj,le_document,MH_personne,les_lignées,n_level_ma
         for n_level in range(z_level+1):
             color_level.append(f'#{RGBColor(250-10*n_level,250-10*n_level,250-10*n_level)}')
             color_rang.append(f'#{RGBColor(20,150-30*n_level,200-30*n_level)}')
+            color_rang[0] = couleur_chemin
            # "#EC5800"        
 
         col_header_format = [
@@ -2482,7 +2502,7 @@ def PPTX_ascendant_table(sql_obj,le_document,MH_personne,les_lignées,n_level_ma
         
         col_lignée_format =[
             [c[0],"center","normal",14,Black,White,Black,White,1,1,1,1], 
-            [wtable - c[0] - c[-1] ,"left","normal",14,Darkblue,White,Darkblue,White,0,0,1,1],
+            [wtable - c[0] - c[-1] ,"left","normal",14,couleur_chemin,White,couleur_chemin,White,0,0,1,1],
             [c[-1],"left","bold",20,White,White,White,White,2,1,0,0]#  suivant
             ]
         
@@ -2509,14 +2529,6 @@ def PPTX_ascendant_table(sql_obj,le_document,MH_personne,les_lignées,n_level_ma
             max_n_col = max(max_n_col,len(col_format_level))
 
         max_n_col = max_n_col - 1
-        #print("max_n_col",max_n_col)
-        
-        #for  idx,t in enumerate(col_format_levels):
-            #print (idx,"--"* 20)
-            #for ii in t:
-                #print (ii)
-            
-            #print("n_col",len(t),"-",max_n_col-1)
 
         #-------------------------------------------------------------------------------------- 
         #hauteur du header
