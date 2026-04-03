@@ -1,4 +1,4 @@
-My project is about generation a pptx document from GEDCOM Data ( tested with My Heritage )
+My project is about generating a pptx document from GEDCOM Data ( tested with My Heritage )
 
 Export GEDCOM file form your Application
 GEDCOM Data are imported in SQLite.
