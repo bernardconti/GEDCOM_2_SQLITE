@@ -474,7 +474,7 @@ def PPTX_table_row_height(table_cells):
                         for item in les_textes_sp:
                             w = la_font.getlength(item) * 0.352778
                             n = int(w/(la_cell_width))+1
-                            le_h = (ascent + descent)*0.352778*1*n
+                            le_h = le_h + (ascent + descent)*0.352778*1*n
                             #le_h = le_h + h_cell
 
                     le_h = le_h + table_cell[10] + table_cell[11]
