@@ -115,7 +115,6 @@ slide_layout_table_pleine = 15
 box_photo_width = 50
 box_photo_height = 50
 
-
 #### PPTX SECTION
 #=============================================================================================================
 # PAGES
@@ -144,73 +143,121 @@ def PPTX_add_page(le_document,le_layout):
     if n_slide > 1 : PPTX_add_run(PPTX_add_paragraph(b,"right"),str(n_slide),"italic","bold",size=10)
     return la_page,boxes
 #=============================================================================================================
-def PPTX_add_page_garde(sql_obj,le_document,les_bros,isModeFratrie):
-    la_page,boxes = PPTX_add_page( le_document,slide_layout_garde)
-    p = PPTX_add_paragraph(boxes[0])
+def PPTX_add_page_garde(sql_obj,le_document,MH_personnes):
 
-    boxes[0].text = f'{datetime.now().month}/{datetime.now().year}'
-    if isModeFratrie:
-        for idx,le_bro in enumerate(les_bros):
-            p = PPTX_add_paragraph(boxes[0])
-            PPTX_add_run(p,text_personne_full(le_bro))
-            PPTX_add_photoID(sql_obj,la_page,20 + 40*idx,20,40,40,le_bro)
-    else: 
-        p = PPTX_add_paragraph(boxes[0])
-        PPTX_add_run(p,text_personne_full(les_bros[0]))
-        PPTX_add_photoID(sql_obj,la_page,20,20,40,40,les_bros[0])
+    tday = datetime.now()
+    daytoday = tday.ctime()
+
+    le_titre = f'la MIFA - Édition du {datetime.now().day}-{datetime.now().month}-{datetime.now().year}'
+
+    # ajout d'une slide
+    la_page, boxes = PPTX_add_page(le_document,slide_layout_garde)
+
+    #images        
+    imgs = max ((slide_width - slide_margin_right - slide_margin_left) / 8, 50)
+
+    y  = slide_margin_top
+    x = slide_margin_left
+    for MH_personne in MH_personnes:
+        if x + imgs > slide_width - slide_margin_right:
+            y = y + imgs
+            x = 10
+        PPTX_add_photoID(sql_obj,la_page,x,y,imgs,imgs,MH_personne[0])
+        x = x + imgs
+
+    #titre
+    PPTX_add_run(PPTX_add_paragraph(boxes[0]),le_titre)
+
+    temp = []
+    #list des personnes
+    for MH_personne in MH_personnes:
+        t = f'{text_personne(MH_personne[0],"prenom","nom","prenoms","surnom","bdyear")}'
+        PPTX_add_run(PPTX_add_paragraph(boxes[1]),t)
+        temp.append(t)
+
 
     return la_page,boxes
 #=============================================================================================================
-def PPTX_page_image(sql_obj,le_document,MH_personne,sujet,*args,**kwargs):
+def PPTX_page_sommaire(sql_obj,le_document,MH_personnes,sujet):
 #=============================================================================================================
-    isPhotoID =  True
-    le_layout = slide_layout_entourage
-    x0 = slide_margin_left
-    for valeur in args:
-        if valeur:
-            if isinstance(valeur, str): valeur =valeur.lower()
-            if valeur == "nophotoid" : isPhotoID = False 
-            if valeur == "photomh" : le_layout = slide_layout_photoMH
-            if valeur == "liste": le_layout = slide_layout_liste
-            if valeur == "image_right" : x0 = slide_width  - image_size
 
-    le_layout = slide_layout_entourage
-    for clef, valeur in kwargs.items():  
-        if valeur: 
-            if isinstance(clef,str): clef =clef.lower()
-            if clef == "layout" : le_layout = valeur
+    #x0 = slide_width - image_size
+    x0 = 0
+    le_layout = slide_layout_section
+    image_size = 33.4
+
     # ajout d'une slide
 
     la_page, boxes = PPTX_add_page(le_document,le_layout)
-    if isPhotoID : PPTX_add_photoID(sql_obj,la_page,x0,0,image_size,image_size,MH_personne)
+    temp_text = []
+    for idx,MH_personne in enumerate(MH_personnes):
+        PPTX_add_photoID(sql_obj,la_page,x0,idx*image_size,image_size,image_size,MH_personne[0])
+        temp_text.append(text_personne(MH_personne[0],"prenom"))
     # Nom Premon  
     p = PPTX_add_paragraph(boxes[0],"center")
-    PPTX_add_run(p,f'{MH_personne.prenom} {MH_personne.nom}',"bold")
-    PPTX_add_run(p,f' {MH_personne.prenoms if MH_personne.prenoms else ""}',"italic",)
-    PPTX_add_run(p,f' "{MH_personne.surnom if MH_personne.surnom else ""}"',"italic")
+    if temp_text : t = ", ".join(temp_text)
+    else: t ="zorg"
+    PPTX_add_run(p,t,"bold")
+
 
     if sujet:
         p = PPTX_add_paragraph(boxes[-1],"center")
         PPTX_add_run(p,sujet)
     return la_page, boxes
 #=============================================================================================================
-def PPTX_add_page_section(le_document,MH_adult1,MH_adult2,le_sujet,box_sommaire):
+def PPTX_add_page_section(sql_obj,le_document,MH_personnes,le_sujet,box_sommaire,*args):
+
+    isName = True
+
+    for valeur in args:
+        if valeur:
+            if isinstance(valeur, str): valeur =valeur.lower()
+            if valeur == "noname" : isName = False
 
     if box_sommaire and le_sujet:
-        la_page,boxes = PPTX_add_page( le_document,slide_layout_garde)
 
-        if isinstance(le_sujet, list): le_texte = [" ".join(le_sujet)]
-        elif isinstance(le_sujet, str): le_texte = [le_sujet]
+        if isinstance(le_sujet, list): le_titre = " ".join(le_sujet)
+        elif isinstance(le_sujet, str): le_titre = le_sujet
         else: return
 
-        if MH_adult1 != MH_none:le_texte.append(f'de {MH_adult1.prenom} {MH_adult1.nom}')
-        if MH_adult2 != MH_none:le_texte.append(f' et de {MH_adult2.prenom} {MH_adult2.nom}')
-        for item in le_texte:
-            PPTX_add_run(PPTX_add_paragraph(boxes[0]),item)
+        # ajout d'une slide
+        la_page, boxes = PPTX_add_page(le_document,slide_layout_garde)
 
-        PPTX_add_ligne_sommaire(box_sommaire,le_document,la_page,le_texte,"section")
+        #images 
+        if MH_personnes:
+            n_line_max = 4
+            n_images = len(MH_personnes)
 
-    return 
+            n_image_per_row = int(n_images/n_line_max)+1
+
+            imgs = min ((slide_width - slide_margin_right - slide_margin_left) / n_image_per_row, 30)
+
+            y  = slide_margin_top
+            x = slide_margin_left
+            for MH_personne in MH_personnes:
+                if x + imgs > slide_width - slide_margin_right:
+                    y = y + imgs
+                    x = slide_margin_left
+                PPTX_add_photoID(sql_obj,la_page,x,y,imgs,imgs,MH_personne[0])
+                x = x + imgs
+
+        #titre
+        PPTX_add_run(PPTX_add_paragraph(boxes[0]),le_titre)
+
+        temp = []
+        #list des personnes
+        for item in MH_personnes:
+            t = f'{text_personne(item[0],"prenom","nom","prenoms","surnom","bdyear")}'
+            PPTX_add_run(PPTX_add_paragraph(boxes[1]),t)
+            temp.append(t)
+
+        #ajout sur page sommaire
+
+        if temp and isName: le_texte = f'{le_titre} {", ".join(temp)}'
+        else :le_texte = le_titre
+        PPTX_add_ligne_sommaire(box_sommaire,le_document,la_page,le_texte,*args)
+
+    return la_page, boxes
 #=============================================================================================================
 # TABLES
 #=============================================================================================================
@@ -236,6 +283,7 @@ def PPTX_table_display(sql_obj,le_document,col_format,le_header,display_table,bo
     x_table = 10
     y_table = 0
     le_layout = slide_layout_table_image
+    le_text_sommaire = ""
     for clef, valeur in kwargs.items():  
         #if valeur: 
             if isinstance(clef,str): clef =clef.lower()
@@ -266,6 +314,7 @@ def PPTX_table_display(sql_obj,le_document,col_format,le_header,display_table,bo
     h_row = 0
     la_table = None
     les_PhotoIDs = []
+    isFirst = True
     #---------------------------------------------------------------------------------------------------------
     for table_row in display_table:
     #---------------------------------------------------------------------------------------------------------
@@ -281,7 +330,7 @@ def PPTX_table_display(sql_obj,le_document,col_format,le_header,display_table,bo
 
             la_page, boxes = PPTX_add_page(le_document,le_layout) 
             PPTX_add_box(la_page,0,0,x_table,slide_height,bcolor = GraySide)
-
+                
             la_table = PPTX_table_add(la_page,col_format,x_table,y_table,1,1)
             if le_header : 
                 PPTX_table_row_display_photoID_in_cell(sql_obj,la_table,le_header,"header")  
@@ -354,7 +403,11 @@ def PPTX_table_row_add(table):
     return row,row._tr.row_idx
 #=============================================================================================================
 def PPTX_table_row_display_photoID_in_cell(sql_obj,la_table,table_row,*args):
-#-----------------------------------------------------------------------------------------------------------  
+#----------------------------------------------------------------------------------------------------------- 
+    #if len(table_row) != 5 : 
+    #    for idx,item in enumerate(table_row):
+    #        print("idx",idx,"item",item)
+    #    exit()    
     isEven = table_row[1]
     max_n_col = table_row[2]
     table_cells = table_row[3]
@@ -452,8 +505,16 @@ def PPTX_table_row_height(table_cells):
 
         if table_cell[2] == "bold" : la_font = ImageFont.truetype(font_file_bold,table_cell[3])
         else:la_font = ImageFont.truetype(font_file,table_cell[3])
-
-        ascent, descent = la_font.getmetrics()
+        h_cell = (la_font.font.height)*0.352778
+        #ascent, descent = la_font.getmetrics()
+        h_sep = 1.5
+        #h_cell = 5.4
+        #h_cell = (ascent + descent)*0.352778 + h_sep
+        #h_cell = (la_font.font.height)*0.352778
+        #print("h_cell---->",h_cell)
+        #print("line_height",(la_font.font.height)*0.352778)
+        #print("marge_top---->",table_cell[10])
+        #print("marge_bot---->",table_cell[11])
 
         le_content = table_cell[12]
         if le_content:
@@ -472,15 +533,24 @@ def PPTX_table_row_height(table_cells):
                     for le_texte in les_textes:
                         les_textes_sp= le_texte.splitlines()
                         for item in les_textes_sp:
+                            if "strong" in item.lower():
+                                item = item.replace("<STRONG>","")
+                                item = item.replace("<strong>","")
+                                item = item.replace("</STRONG>","")
+                                item = item.replace("</strong>","")
+                                la_font = ImageFont.truetype(font_file_bold,table_cell[3])
+                                h_cell = (la_font.font.height)*0.352778
+                            #print(item)
                             w = la_font.getlength(item) * 0.352778
                             n = int(w/(la_cell_width))+1
-                            le_h = le_h + (ascent + descent)*0.352778*1*n
-                            #le_h = le_h + h_cell
-
+                            le_h = le_h + h_cell * n + h_sep
+                            
+                    
                     le_h = le_h + table_cell[10] + table_cell[11]
-
+            
+           
             h_row = max(h_row,le_h  ) 
-    #print(h_row)
+    #print("h_row",h_row)
     return h_row
 #=============================================================================================================
 def PPTX_table_cell_add_paragraph(la_cell,*args,**kwargs):
@@ -695,229 +765,6 @@ def PPTX_add_hyperlink_to_slide(box, run , n_slide): #15/01/2026
     box.click_action.target_slide = None
     return
 #=============================================================================================================
-def box_font_size(wb,le_texte,size_max,size_min):
-    size = size_max
-    if wb > 0 and le_texte:
-        w_chr = (wb-1)/len(le_texte)
-        size = w_chr * 5
-        if size > size_max:size = size_max
-        if size < size_min: size = size_min
-    return size
-#=============================================================================================================
-def PPTX_add_run_MH_personne(le_paragraph,MH_personne,*args,**kwargs):
-#-------------------------------------------------------------------------------------------------------------   
-    if MH_personne == MH_none: return
-#-------------------------------------------------------------------------------------------------------------  
-    color = False
-    size = False
-    font= False
-    prefix = False
-    suffix= False
-
-    isUnderline = False
-
-    isNom = False
-    isPrenom = False
-    isPrenoms = False
-    isSurnom = False
-    isDate = False
-    type_date = 0
-    isYear = False
-    isbLocation = False
-    isdLocation = False
-    isCause = False
-
-    for valeur in args:
-        if valeur:
-            if isinstance(valeur, str): valeur =valeur.lower()
-# lié au run
-            if valeur == "underline" : isUnderline =  True
-# lié au contenu affiché
-            if valeur == "nom" : isNom =  True
-            if valeur == "prenom" : isPrenom =  True
-            if valeur == "prenoms" : isPrenoms =  True
-            if valeur == "surnom" : isSurnom =  True
-            if valeur == "date" : isDate =  True
-            if valeur == "year" : isYear =  True
-            if valeur == "blocation" : isbLocation =  True
-            if valeur == "dlocation" : isdLocation =  True
-            if valeur == "cause" : isCause =  True
-
-# lié au run
-    for clef, valeur in kwargs.items():   
-        if clef: 
-            clef =clef.lower()
-            if clef == "color" : color = valeur
-            if clef == "size" : size = valeur
-            if clef == "font": font = valeur
-            if clef == "prefix" : prefix = valeur
-            if clef == "suffix" : suffix = valeur
-            if clef == "type_date" : type_date = valeur
-
-#-------------------------------------------------------------------------------------------------------------  
-    if prefix: PPTX_add_run(le_paragraph,f'{prefix} ',
-                            "underline" if isUnderline else "",
-                            size=size,
-                            font=font,
-                            color=color)
-            
-    prenom = text_personne(MH_personne,"prenom")
-    prenoms = text_personne(MH_personne,"prenoms")
-    nom = text_personne(MH_personne,"nom")
-    surnom= text_personne(MH_personne,"surnom")
-    conjugaison = "e" if text_personne(MH_personne,"sexe") == "F" else ""
-    bdate = text_personne(MH_personne,"bdate")
-    byear = text_personne(MH_personne,"byear")
-    bplace = text_personne(MH_personne,"bplace")
-    bcity = text_personne(MH_personne,"bcity")
-    ddate = text_personne(MH_personne,"ddate")
-    dyear = text_personne(MH_personne,"dyear")
-    dplace = text_personne(MH_personne,"dplace")
-    dcity = text_personne(MH_personne,"dcity")
-    lacause = text_personne(MH_personne,"lacause")
-    bdyear = text_personne(MH_personne,"bdyear")
-
-    if prenom and isPrenom:   
-        PPTX_add_run(le_paragraph,f'{prenom}', 
-                            "bold",
-                            "underline" if isUnderline else "",
-                            size=size,
-                            font=font,
-                            color=color)
-    if nom and isNom:         
-        PPTX_add_run(le_paragraph,f' {nom}', 
-                            "bold",
-                            "underline" if isUnderline else "",
-                            size=size,
-                            font=font,
-                            color=color)
-        
-    if prenoms and isPrenoms: 
-        PPTX_add_run(le_paragraph,f' {prenoms}',
-                            "italic",
-                            "underline" if isUnderline else "",
-                            size=size,
-                            font=font,
-                            color=color)
-    if surnom and isSurnom:   
-        PPTX_add_run(le_paragraph,f' "{surnom}"',
-                            "italic",
-                            "underline" if isUnderline else "",
-                            size=size,
-                            font=font,
-                            color=color)
-
-    if isYear or isDate : 
-
-        if isYear:
-            PPTX_add_run(le_paragraph,f' ({bdyear})',            #{byear}{"-"+dyear+"†" if dyear else ""})',
-                                "italic",
-                                "underline" if isUnderline else "",
-                                size=size,
-                                font=font,                         
-                                color=Bleu)
-            
-            PPTX_add_run(le_paragraph,f' {" "+ bcity if isbLocation and bcity else ""}{" †"+ dcity[0] if (isdLocation and dcity) else ""}',
-                                "italic",
-                                "underline" if isUnderline else "",
-                                size=size,
-                                font=font,                         
-                                color=Bleu)      
- 
-        if isDate:
-            if type_date == 0:
-                PPTX_add_run(le_paragraph,' (',size=size,font=font,color=color)
-                PPTX_add_run(le_paragraph,f'{bdate}',
-                                "underline" if isUnderline else "",size=size,font=font,color=Bleu)
-                            
-                PPTX_add_run(le_paragraph,f' à {bcity}' if bcity else "",
-                                "underline" if isUnderline else "",size=size,font=font,color=Bleu)
-                
-                if ddate: 
-                    PPTX_add_run(le_paragraph,f', † {ddate}',size=size,font=font,color=color)
-                    if dplace :
-                        PPTX_add_run(le_paragraph,f' à {dcity}',
-                                "underline" if isUnderline else "",size=size,font=font,color=Bleu)
-                    if lacause and isCause:
-                        PPTX_add_run(le_paragraph,f' ,{lacause})',
-                                "underline" if isUnderline else "",size=size,font=font,color=Bleu)
-                PPTX_add_run(le_paragraph,')',size=size,font=font,color=color)
-
-            # entourage
-            elif type_date == 3:
-                PPTX_add_run(le_paragraph,f', né{conjugaison} le {bdate}',
-                                "underline" if isUnderline else "",size=size,font=font,color=color)
-                                
-                PPTX_add_run(le_paragraph,f' à {bcity}' if bplace else "",
-                                "underline" if isUnderline else "", size=size,font=font,color=color)
-            
-                if ddate : 
-                        PPTX_add_run(le_paragraph,f', décédé{conjugaison} le {ddate}',size=size,font=font,color=color)
-                        if dplace :
-                            PPTX_add_run(le_paragraph,f' à {dcity}',
-                                    "underline" if isUnderline else "",
-                                    size=size,
-                                    font=font,
-                                    color=color)
-            # ascendant draw
-            elif type_date == 2:
-                    PPTX_add_run(le_paragraph,f'{bdate}',
-                                    "underline" if isUnderline else "",size=size,font=font,color=color)
-
-                    PPTX_add_run(le_paragraph,f' à {bcity}' if bplace else "",
-                                    "underline" if isUnderline else "",size=size,font=font,color=color)
-                    
-                    if ddate : 
-                        #PPTX_add_run(le_paragraph,f', † {ddate}',size=size,font=font,color=color)
-                        PPTX_add_run(le_paragraph,f'\n† {ddate}',size=size,font=font,color=color)
-                        if dplace :
-                            PPTX_add_run(le_paragraph,f' à {dcity}',
-                                    "underline" if isUnderline else "",size=size,font=font,color=color)
-
-                        if lacause and isCause:
-                            PPTX_add_run(le_paragraph,f' ,{lacause})',
-                                    "underline" if isUnderline else "",size=size,font=font,color=color)              
-            # descendants draw
-            elif type_date == 4:
-                PPTX_add_run(le_paragraph,f'{bdate}',
-                                "underline" if isUnderline else "",size=size,font=font,color=color)
-
-                #PPTX_add_run(le_paragraph,f' à {blocation[0]}' if blocation else "",
-                #                "underline" if isUnderline else "",size=size,font=font,color=color)
-                
-                if ddate : 
-                    #PPTX_add_run(le_paragraph,f', † {ddate}',size=size,font=font,color=color)
-                    PPTX_add_run(le_paragraph,f' † {ddate}',size=size,font=font,color=color)
-                    #if dlocation :
-                    #    PPTX_add_run(le_paragraph,f' à {dlocation[0]}',
-                    #            "underline" if isUnderline else "",size=size,font=font,color=color)
-
-                PPTX_add_run(le_paragraph,f', {bcity}' if bplace else "",
-                                "underline" if isUnderline else "",size=size,font=font,color=color)
-                
-            # descendants draw
-            if type_date == 5:
-                PPTX_add_run(le_paragraph,f' ({byear}{"-"+dyear+"†" if dyear else ""})',
-                                    size=size,font=font,color=color)
-                
-            elif type_date == 6: # descendants_entourage
-                PPTX_add_run(le_paragraph,f', {bdate}',size=size,font=font,color=color)
-                PPTX_add_run(le_paragraph,f' à {bcity}' if bcity else "",size=size,font=font,color=color)
-                
-                if ddate : 
-                    PPTX_add_run(le_paragraph,f'\n† {ddate}',size=size,font=font,color=color)
-                    PPTX_add_run(le_paragraph,f' à {dcity}' if dcity else "",size=size,font=font,color=color)
-            
-     
-# suffixe
-    if suffix: PPTX_add_run(le_paragraph,f'{suffix}',
-                            "underline" if isUnderline else "",
-                            size=size,
-                            font=font,
-                            color=color)
-#-------------------------------------------------------------------------------------------------------------   
-    return 
-#=============================================================================================================
 def PPTX_add_paragraph_MH_personne(la_box,MH_personne,*args,**kwargs):
 #-------------------------------------------------------------------------------------------------------------   
     if MH_personne == "???": return
@@ -1107,117 +954,7 @@ def PPTX_add_paragraph_MH_personne(la_box,MH_personne,*args,**kwargs):
 #-------------------------------------------------------------------------------------------------------------   
     return le_paragraph
 #=============================================================================================================
-def PPTX_add_couple_xy(sql_obj,la_page,x,y,box_width,box_height,images_style,MH_adult1,*args,**kwargs):
-#------------------------------------------------------------------------------------------------------------- 
-    type_date = 0
-    la_couleur =""
-    isAscendants = False
-    le_style = "bold"
-    isTransparent = False
-    #
-    for valeur in args:
-        if valeur:
-            if isinstance(valeur, str): valeur =valeur.lower()
-            if valeur == "ascendants" : isAscendants = True   
-            if valeur == "transparent" : isTransparent = True
 
-    for clef, valeur in kwargs.items():  
-        if valeur: 
-            if isinstance(clef,str): clef =clef.lower()
-            if clef == "bcolor" : la_couleur = valeur
-            if clef == "type_date" : type_date = valeur
-            if clef == "style" : le_style = valeur
-
-    #print(MH_adult1,MH_adult2)
-    if MH_adult1 == MH_none : return
-
-    if not la_couleur :
-        if MH_adult1.sexe == "M": la_couleur =couleur_homme
-        else: la_couleur = couleur_femme
-            
-    buffer_group = []
-
-    image_size = box_height
-    xb = x + image_size
-    yb = y
-    wb = box_width - image_size
-    hb = box_height
-
-
-# adult 1 
-    le_texte_1 = text_personne(MH_adult1,"prenom","nom")
-
-# photo adult 1
-#WW1
-    try:
-        img = PPTX_add_photoID(sql_obj,la_page,x,y,image_size,image_size,MH_adult1)
-        buffer_group.append(img)
-    except Exception as error:
-        print("PPTX_add_photoID : ",MH_adult1.name.format())
-
-#-- Ajout du texte
-    object_textbox = PPTX_add_box(la_page,xb ,yb,wb,hb,"transparent" if isTransparent else  "" ,bcolor = la_couleur,margin_left = 1,margin_right=1)
-    buffer_group.append(object_textbox)
-    #ligne 1 
-
-# adult 1
-    if le_texte_1 : 
-        p = PPTX_add_paragraph(object_textbox,"center") #"left" if MH_adult2 != "???" else "center"
-        PPTX_add_run(p,le_texte_1,le_style,box_width = wb)
-        if type_date > 0:
-            if type_date != 5 : p = PPTX_add_paragraph(object_textbox,"center")
-            PPTX_add_run_MH_personne(p,MH_adult1,"date",type_date = type_date,size= 12 if isAscendants else 10)
-
-#Grouping
-    if buffer_group :
-        le_groupe = la_page.shapes.add_group_shape(shapes=buffer_group) 
-
-    return le_groupe
-#=============================================================================================================
-def PPTX_add_couple_xy_descendant(la_page,x,y,image_size,gap_immage,MH_adult1,MH_adult2,*args,**kwargs):
-#-------------------------------------------------------------------------------------------------------------
-# PPTX_add_couple_xy_descendant(la_page,x,y,image_size,MH_adult_1,MH_adult_2,"transparent" if isTransparent else "",bcolor = White,style="normal") 
-    la_couleur =""
-    isTransparent = False
-    #
-    for valeur in args:
-        if valeur:
-            if isinstance(valeur, str): valeur =valeur.lower() 
-            if valeur == "transparent" : isTransparent = True
-
-    for clef, valeur in kwargs.items():  
-        if valeur: 
-            if isinstance(clef,str): clef =clef.lower()
-            if clef == "bcolor" : la_couleur = valeur
-
-#------------------------------------------------------------------------------------------------------------------------
-    buffer_group = []
-    if MH_adult1 != "???" : 
-
-        # photo adult 1
-        try:
-            img = PPTX_add_photoID(la_page,x,y,image_size,image_size,MH_adult1)
-            buffer_group.append(img)
-        except Exception as error:
-            print("PPTX_add_photoID : ",MH_adult1.name.format())
-
-        # adult 2
-        if MH_adult2 != "???":  
-
-            try:
-                img = PPTX_add_photoID(la_page,x+image_size+gap_immage,y,image_size,image_size,MH_adult2)
-                buffer_group.append(img)
-
-                tbox = PPTX_add_box(la_page,x+ image_size,y,gap_immage,image_size,*args,**kwargs)
-                buffer_group.append(tbox)
-
-            except Exception: print("PPTX_add_photoID : ",MH_adult2.name.format())
-
-        #Grouping
-        if buffer_group :le_groupe = la_page.shapes.add_group_shape(shapes=buffer_group) 
-
-    return le_groupe
-#=============================================================================================================
 # PHOTOS
 #=============================================================================================================
 def PPTX_add_photoID(sql_obj,slide,x,y,img_height,img_width,MH_personne,*args):
@@ -1675,42 +1412,8 @@ def PPTX_add_run_html(p,HTML_text,*args,**kwargs):
 # ASCENDANT, DESCENDANT, ENTOURAGE
 #=============================================================================================================
 def PPTX_biographies_light_table(sql_obj,le_document,MH_personnes,box_sommaire):
-
-    clefs_MH_personnes = []
-    clean_list = []
-    for item in MH_personnes:
-
-        MH_personne = item[0]
-        le_type = item[1] #ascendant,descendant
-        MH_cible = item[2]
-        n_level = item[3]
-        la_Celebrity = item[4]
-
-        les_bios = get_personne_bios(sql_obj,MH_personne)
-        if not la_Celebrity and not les_bios :
-
-            #calcul des lignées pour la cible
-            if le_type == "ascendant":
-                les_lignées = get_personne_lignées(sql_obj,MH_cible)
-                la_lignée,la_lignée_idx = get_personne_lignée(MH_personne,les_lignées)
-                temp_lignée = []
-                for idx,MH_indi in enumerate(la_lignée):
-                    temp_lignée.append(f'{f'[{idx}] ' if idx > 0 else ""}{text_personne(MH_indi,"prenom","nom","bdyear")}')
-                la_lignée_texte = " < ".join(temp_lignée)
-            else: 
-                la_lignée_texte = ""
-                la_lignée_idx = 0
-            
-            clef = f'{MH_personne.indi_id}{le_type}{MH_cible.indi_id}{n_level}'
-            if clef not in clefs_MH_personnes and not isinstance(item[0],str): 
-                clefs_MH_personnes.append(clef)
-                clean_list.append([MH_personne,f'{n_level}|{text_personne(MH_personne,"nom").upper()}',la_lignée_texte,la_lignée_idx,
-                                   le_type,f'{MH_cible.nom} {MH_cible.prenom} {MH_cible.prenoms}'])
-    
-    if clean_list:
-        clefs_tri = list_unique_colomn(clean_list,4)
-        clefs_cible = list_unique_colomn(clean_list,5)  
-
+    if MH_personnes:
+        
         ml = 10
         c = [20,11,45,36,13,13,0]
         c[-1] = slide_width-ml - sum(c[:-1])
@@ -1749,172 +1452,146 @@ def PPTX_biographies_light_table(sql_obj,le_document,MH_personnes,box_sommaire):
                 ]
             
         max_n_col = len(col_format)-1
-    #--------------------------------------------------------------------------------------              
-        for clef_tri in clefs_tri:
-            for clef_cible in clefs_cible:
-    #---------------------------------------------------------------------------------------         
-                filter_list = filter(lambda c: (c[4]==clef_tri and c[5]== clef_cible),clean_list)
-                clean_list = sorted(filter_list, key=lambda col: (col[1]))
-                if  clean_list : 
-                
-                    display_table = []
-                    isNew = True
 
-                    if clef_tri == "cible": le_titre = f"Biographie"
-                    else: le_titre = f"Biographies des {clef_tri}s"
-                    
-                    for clean_item in clean_list:
+        #--------------------------------------------------------------------------------------    
+        #     for item in MH_personnes:
+        MH_personnes = sorted(MH_personnes, key=lambda col: (col[6]))
+        display_table = []
+        isNew = True
+        for MH_personne in MH_personnes:
+            MH_item = MH_personne[0]
 
-                        MH_item  = clean_item[0] 
-                        la_lignée_texte = clean_item[2] 
-                        la_lignée_idx = clean_item[3] 
-                        la_cible = clean_item[5]
+            le_header = [isNew,True,max_n_col,
+                        [col_header_format[0] + [" "],
+                            col_header_format[1] + ["Biographies simplifiées"]],0]
 
-                        le_header = [isNew,True,max_n_col,
-                                    [col_header_format[0] + [" "],
-                                     col_header_format[1] + [f'{le_titre} de {la_cible}']],0]
+            les_educs = get_personne_events(sql_obj,MH_item,even ="EDUC")
+            les_hrefs = get_personne_hrefs(sql_obj,MH_item)
+            les_occus = les_occus = get_personne_events(sql_obj,MH_item,even="OCCU")
+            les_maisons = get_personne_events(sql_obj,MH_item,even="CENS")
+            les_events = get_personne_events(sql_obj,MH_item,even="EVEN")
 
-                        les_educs = get_personne_events(sql_obj,MH_item,even ="EDUC")
-                        les_hrefs = get_personne_hrefs(sql_obj,MH_item)
-                        les_occus = les_occus = get_personne_events(sql_obj,MH_item,even="OCCU")
-                        les_maisons = get_personne_events(sql_obj,MH_item,even="CENS")
-                        les_events = get_personne_events(sql_obj,MH_item,even="EVEN")
+            if les_occus or les_educs or les_events or les_maisons or les_hrefs:
 
-                        if les_occus or les_educs or les_events or les_maisons or les_hrefs:
+                prenom = text_personne(MH_item,"prenom")
+                prenoms = text_personne(MH_item,"prenoms")
+                nom = text_personne(MH_item,"nom")
+                surnom = text_personne(MH_item,"surnom")
+                byear = text_personne(MH_item,"byear")
+                dyear = text_personne(MH_item,"dyear")
 
-                            prenom = text_personne(MH_item,"prenom")
-                            prenoms = text_personne(MH_item,"prenoms")
-                            nom = text_personne(MH_item,"nom")
-                            surnom = text_personne(MH_item,"surnom")
-                            byear = text_personne(MH_item,"byear")
-                            dyear = text_personne(MH_item,"dyear")
+                display_table.append( 
+                                    [isNew,False,max_n_col,
+                                        [
+                                            col_format[0] + [MH_item], 
+                                            col_format[1] + [" "],
+                                            col_format[2] + [nom],
+                                            col_format[3] + [f'{prenom if prenom else ""}'],
+                                            col_format[4] + [f'{byear if byear else "????"}'],
+                                            col_format[5] + [f'{dyear if dyear else ""}'],
+                                            col_format[6] + [f'{prenoms if prenoms else ""} {surnom if surnom else ""}']
+                                        ] ,0])     
+                isNew = False
+                isEven = True
 
-                            display_table.append( 
-                                                [isNew,False,max_n_col,
-                                                    [
-                                                        col_format[0] + [MH_item], 
-                                                        col_format[1] + [" "],
-                                                        col_format[2] + [nom],
-                                                        col_format[3] + [f'{prenom if prenom else ""}'],
-                                                        col_format[4] + [f'{byear if byear else "????"}'],
-                                                        col_format[5] + [f'{dyear if dyear else ""}'],
-                                                        col_format[6] + [f'{prenoms if prenoms else ""} {surnom if surnom else ""}']
-                                                    ] ,0])     
-                            isNew = False
-                            isEven = True
+                if les_maisons:
+                    for idx,item in enumerate(les_maisons):
+                        le_texte = ""
+                        if item.date  : le_texte = f'<STRONG>{item.date}</STRONG>: ' 
+                        if item.place : le_texte = f'{le_texte} {item.place}'   
 
-                            if la_lignée_texte : 
-                                if la_lignée_idx > 0:
+                        display_table.append([isNew,isEven, max_n_col, 
+                                        [col_lignée_format[0] + [None],              
+                                            col_merged_format[1] + ["🏠" if idx == 0  else " "],
+                                            col_merged_format[2] + [le_texte]],0
+                                        ]) 
+                        isNew = False
 
-                                    texte_chapitre = "👨‍👨‍👧‍👦"
-                                    display_table.append([False,isEven, max_n_col,      
-                                                            [col_lignée_format[0] + [None],
-                                                             col_lignée_format[1] + [texte_chapitre],
-                                                             col_lignée_format[2] + [[f'Ancètre direct de {clean_item[3]}{"ème" if la_lignée_idx> 1 else "er"} génération']]]
-                                                            ])
-                                    display_table.append([False,isEven, max_n_col,      
-                                                            [col_lignée_format[0] + [None],
-                                                             col_lignée_format[1] + [texte_chapitre],
-                                                             col_lignée_format[2] + [la_lignée_texte]],0
-                                                            ])
-                                                          
-                                    isEven = False if isEven else True
-                                    isNew = False
+                    isEven = False if isEven else True
 
-                            if les_maisons:
-                                for idx,item in enumerate(les_maisons):
-                                    le_texte = ""
-                                    if item.date  : le_texte = f'<STRONG>{item.date}</STRONG>: ' 
-                                    if item.place : le_texte = f'{le_texte} {item.place}'   
+                if les_educs:
+                    for idx,item in enumerate(les_educs):
+                        le_texte = ""
+                        if item.date : le_texte = f'<STRONG>{item.date}</STRONG>: '
+                        if item.description : le_texte = f'{le_texte} {item.description}' 
+                        if item.place : le_texte = f'{le_texte} à {item.place}'
+                        if item.note : le_texte = f'{le_texte}: {item.note}'
+                        
+                        display_table.append([isNew,isEven,max_n_col, 
+                                        [col_lignée_format[0] + [None],           
+                                            col_merged_format[1] + ["🗞️" if idx == 0 else " "],
+                                            col_merged_format[2] + [le_texte]
+                                        ],0] )  
+                        isNew = False                      
+                        
+                    isEven = False if isEven else True
 
-                                    display_table.append([isNew,isEven, max_n_col, 
-                                                    [col_lignée_format[0] + [None],              
-                                                     col_merged_format[1] + ["🏠" if idx == 0  else " "],
-                                                     col_merged_format[2] + [le_texte]],0
-                                                    ]) 
-                                    isNew = False
+                if les_occus:
+                    for idx,item in enumerate(les_occus):
+                        le_texte = ""
+                        if item.date : le_texte = f'<STRONG>{item.date}</STRONG>: '
+                        if item.description : le_texte = f'{le_texte} {item.description}' 
+                        if item.place : le_texte = f'{le_texte} à {item.place}'
+                        if item.note : le_texte = f'{le_texte}: {item.note}'
 
-                                isEven = False if isEven else True
-            
-                            if les_educs:
-                                for idx,item in enumerate(les_educs):
-                                    le_texte = ""
-                                    if item.date : le_texte = f'<STRONG>{item.date}</STRONG>: '
-                                    if item.description : le_texte = f'{le_texte} {item.description}' 
-                                    if item.place : le_texte = f'{le_texte} à {item.place}'
-                                    if item.note : le_texte = f'{le_texte}: {item.note}'
-                                    
-                                    display_table.append([isNew,isEven,max_n_col, 
-                                                    [col_lignée_format[0] + [None],           
-                                                     col_merged_format[1] + ["🗞️" if idx == 0 else " "],
-                                                     col_merged_format[2] + [le_texte]
-                                                    ],0] )  
-                                    isNew = False                      
-                                    
-                                isEven = False if isEven else True
+                        display_table.append(   
+                                    [isNew,isEven,max_n_col, 
+                                        [col_lignée_format[0] + [None],          
+                                            col_merged_format[1] + ["🛠️" if idx == 0  else " "],
+                                            col_merged_format[2] + [le_texte]
+                                        ],0])
+                        isNew = False   
 
-                            if les_occus:
-                                for idx,item in enumerate(les_occus):
-                                    le_texte = ""
-                                    if item.date : le_texte = f'<STRONG>{item.date}</STRONG>: '
-                                    if item.description : le_texte = f'{le_texte} {item.description}' 
-                                    if item.place : le_texte = f'{le_texte} à {item.place}'
-                                    if item.note : le_texte = f'{le_texte}: {item.note}'
-
-                                    display_table.append(   
-                                                [isNew,isEven,max_n_col, 
-                                                    [col_lignée_format[0] + [None],          
-                                                     col_merged_format[1] + ["🛠️" if idx == 0  else " "],
-                                                     col_merged_format[2] + [le_texte]
-                                                    ],0])
-                                    isNew = False   
-
-                                isEven = False if isEven else True
-                                                                                
-                            if les_events:
-                                for item in les_events:
-                                    if item.type != "Celebrity":
-                                        le_texte = ""
-                                        if item.type : le_texte = f'{le_texte}<STRONG>{item.type}</STRONG>' 
-                                        if item.description : le_texte = f'{le_texte}: {item.description}' 
-                                        if item.date : le_texte = f'{le_texte}, {item.date}' 
-                                        if item.place : le_texte = f'{le_texte} à {item.place}' 
-                                        
-                                        display_table.append([isNew,isEven, max_n_col,          
-                                                        [ col_lignée_format[0] + [None], 
-                                                          col_merged_format[1] + ["⭐"],
-                                                          col_merged_format[2] + [le_texte]
-                                                        ],0] ) 
-                                        isNew = False
-
-                                isEven = False if isEven else True
-                                
-                            if les_hrefs:
-                                    
-                                for idx,le_texte in enumerate(les_hrefs):
-                                    display_table.append([isNew,isEven,max_n_col,      
-                                                    [
-                                                        col_lignée_format[0] + [None], 
-                                                        col_href_format[1] + ["∞"],
-                                                        col_href_format[2] + [le_texte]
-                                                    ],0] ) 
-                                    isNew = False
+                    isEven = False if isEven else True
+                                                                    
+                if les_events:
+                    for item in les_events:
+                        if item.type != "Celebrity":
+                            le_texte = ""
+                            if item.type : le_texte = f'{le_texte}<STRONG>{item.type}</STRONG>' 
+                            if item.description : le_texte = f'{le_texte}: {item.description}' 
+                            if item.date : le_texte = f'{le_texte}, {item.date}' 
+                            if item.place : le_texte = f'{le_texte} à {item.place}' 
                             
-                                isEven = False if isEven else True
-                                           
-                    if display_table:
-        #------------------------------------------------------------------------------------------------------------------
-                        PPTX_table_display_photoID_in_cell(sql_obj,le_document,col_format,le_header,display_table,box_sommaire,le_titre,
-                                                           x_table=ml,image_width=c[0])
+                            display_table.append([isNew,isEven, max_n_col,          
+                                            [ col_lignée_format[0] + [None], 
+                                                col_merged_format[1] + ["⭐"],
+                                                col_merged_format[2] + [le_texte]
+                                            ],0] ) 
+                            isNew = False
+
+                    isEven = False if isEven else True
+                    
+                if les_hrefs:
+                        
+                    for idx,le_texte in enumerate(les_hrefs):
+                        display_table.append([isNew,isEven,max_n_col,      
+                                        [
+                                            col_lignée_format[0] + [None], 
+                                            col_href_format[1] + ["∞"],
+                                            col_href_format[2] + [le_texte]
+                                        ],0] ) 
+                        isNew = False
+                
+                    isEven = False if isEven else True
+                                
+        if display_table:
+        #------------------------------------------------------------------------------------------------------------------------------------
+            PPTX_table_display_photoID_in_cell(sql_obj,le_document,col_format,le_header,display_table,box_sommaire,"Biographies simplifiées",
+                                                x_table=ml,image_width=c[0])
 
     return
 #=============================================================================================================
 def PPTX_biographies_table(sql_obj,le_document,MH_personnes,le_mode,box_sommaire):
 #MH_personnes = list(0:MH_personne,1:type,2:MH_cible,3:level,4:Celebrity]
 #ZOB
+
     clefs_MH_personnes = []
     clean_list = []
     
+    if not MH_personnes : return
+    MH_personnes = sorted(MH_personnes, key=lambda col: (col[6]))
+
     for item in MH_personnes:
         MH_personne = item[0]
         le_type = item[1] #ascendant,descendant
@@ -1923,27 +1600,26 @@ def PPTX_biographies_table(sql_obj,le_document,MH_personnes,le_mode,box_sommaire
         la_Celebrity = item[4]
 
         les_bios  = get_personne_bios(sql_obj,MH_personne)
-        
-        if ( (le_mode == "main") or
-             (la_Celebrity and le_mode == "celebrity") or 
-             (le_mode == "bio" and les_bios and not la_Celebrity)
-           ):
+        if les_bios : 
+            if ( (le_mode == "main") or
+                (le_mode == "celebrity" and la_Celebrity) or 
+                (le_mode == "bio" and not la_Celebrity)
+            ):
+                if le_type == "ascendant":
+                    les_lignées = get_personne_lignées(sql_obj,MH_cible)
+                    la_lignée,la_lignée_idx = get_personne_lignée(MH_personne,les_lignées)
+                    temp_lignée = []
+                    for idx,MH_indi in enumerate(la_lignée):
+                        temp_lignée.append(f'{f'[{idx}] ' if idx > 0 else ""}{text_personne(MH_indi,"prenom","nom","bdyear")}')
+                    la_lignée_texte = " < ".join(temp_lignée)
+                else: 
+                    la_lignée_texte = ""
+                    la_lignée_idx = 0
 
-            if le_type == "ascendant":
-                les_lignées = get_personne_lignées(sql_obj,MH_cible)
-                la_lignée,la_lignée_idx = get_personne_lignée(MH_personne,les_lignées)
-                temp_lignée = []
-                for idx,MH_indi in enumerate(la_lignée):
-                    temp_lignée.append(f'{f'[{idx}] ' if idx > 0 else ""}{text_personne(MH_indi,"prenom","nom","bdyear")}')
-                la_lignée_texte = " < ".join(temp_lignée)
-            else: 
-                la_lignée_texte = ""
-                la_lignée_idx = 0
-
-            clef = f'{MH_personne.indi_id}{le_type}{MH_cible.indi_id}{n_level}'
-            if clef not in clefs_MH_personnes and not isinstance(item[0],str): 
-                clefs_MH_personnes.append(clef)
-                clean_list.append([MH_personne,f'{n_level}|{MH_personne.nom.upper()}',la_lignée_texte,la_lignée_idx])
+                clef = f'{MH_personne.indi_id}{le_type}{MH_cible.indi_id}{n_level}'
+                if clef not in clefs_MH_personnes and not isinstance(item[0],str): 
+                    clefs_MH_personnes.append(clef)
+                    clean_list.append([MH_personne,f'{n_level}|{MH_personne.nom.upper()}',la_lignée_texte,la_lignée_idx])
             
     if clean_list : 
 
@@ -1990,7 +1666,7 @@ def PPTX_biographies_table(sql_obj,le_document,MH_personnes,le_mode,box_sommaire
         max_n_col = len(col_format)-1
 #-------------------------------------------------------------------------------------- 
         
-        for clean_item in clean_list:
+        for idx,clean_item in enumerate(clean_list):
 
             display_table = []
             isNew = True
@@ -2083,8 +1759,8 @@ def PPTX_biographies_table(sql_obj,le_document,MH_personnes,le_mode,box_sommaire
                         le_texte = ""
                         if item.date : le_texte = f'<STRONG>{item.date}</STRONG>: '
                         if item.description : le_texte = f'{le_texte} {item.description}' 
-                        if item.place : le_texte = f'{le_texte} à {item.place}'
-                        if item.note : le_texte = f'{le_texte}: {item.note}'
+                        if item.place : le_texte = f'{le_texte}, {item.place}'
+                        if item.note : le_texte = f'{le_texte}, {item.note}'
 
                         display_table.append(   
                                     [isNew,isEven,max_n_col,          
@@ -2123,7 +1799,6 @@ def PPTX_biographies_table(sql_obj,le_document,MH_personnes,le_mode,box_sommaire
                             
                     isEven = False if isEven else True
                         
-
                 if les_hrefs:
    
                     display_table.append([isNew,isEven,max_n_col,      
@@ -2145,9 +1820,7 @@ def PPTX_biographies_table(sql_obj,le_document,MH_personnes,le_mode,box_sommaire
                                     
             if display_table:
 #------------------------------------------------------------------------------------------------------------------
-                le_titre = f'{text_personne(MH_item,"prenom","nom")}, {clean_item[1]}'
-                PPTX_table_display(sql_obj,le_document,col_format,le_header,display_table,box_sommaire,x_table = ml )
-
+                PPTX_table_display(sql_obj,le_document,col_format,le_header,display_table,box_sommaire,x_table = ml)
                 if le_mode == "celebrity" :  PPTX_personne_MHphotos(sql_obj,le_document,MH_item )
 
     return
@@ -2156,11 +1829,12 @@ def PPTX_add_ligne_sommaire(box_sommaire,le_document,la_page,le_texte,*args):
 
     if box_sommaire and le_texte : 
 
-        isSection = False
+        le_level = 0
         for valeur in args:  
             if valeur: 
                 if isinstance(valeur,str): valeur =valeur.lower()
-                if valeur == "section" : isSection = True
+                if valeur == "point" : le_level = 1
+                if valeur == "doublepoint" : le_level = 2
 
         if isinstance(le_texte, list): the_texte = " ".join(le_texte)
         elif isinstance(le_texte, str): the_texte = le_texte
@@ -2171,16 +1845,13 @@ def PPTX_add_ligne_sommaire(box_sommaire,le_document,la_page,le_texte,*args):
         le_run = PPTX_add_run(p,f'Page {slide_id:03d}')
         if le_run : PPTX_add_hyperlink_to_slide(box_sommaire,le_run,la_page)
 
-        if isSection :
-            PPTX_add_run(p,f'  ')
-            PPTX_add_run(p,f'{the_texte}',"bold")
-        else:
-            PPTX_add_run(p,f'  • ',size=12)
-            PPTX_add_run(p,f'{the_texte}',size=12)
+        if le_level == 0 :  PPTX_add_run(p,f'  {the_texte}',"bold",size=16)
+        elif le_level == 1: PPTX_add_run(p,f'  • {the_texte}',size=14)
+        elif le_level == 2: PPTX_add_run(p,f'     > {the_texte}','italic',size=12)
 
     return 
 #=============================================================================================================
-def PPTX_feed_MH_personnes(sql_obj,MH_personnes,MH_cible,direction,sujet,**kwargs):
+def PPTX_feed_MH_personnes(sql_obj,MH_personnes,MH_cible,clef_tri,sujet,**kwargs):
 #-------------------------------------------------------------------------------------------------------------
     isVerbose = False
 #-------------------------------------------------------------------------------------------------------------
@@ -2190,30 +1861,56 @@ def PPTX_feed_MH_personnes(sql_obj,MH_personnes,MH_cible,direction,sujet,**kwarg
             if isinstance(clef,str): clef =clef.lower()
             if clef == "n_level_max" : n_level_max = valeur
 #-------------------------------------------------------------------------------------------------------------
-    if direction == "ascendant":
+    temp_personne = []
+    if sujet == "ascendant":
         les_couples = get_personne_ascendants(sql_obj,MH_cible,[],0,n_level_max)
         #list(MH_couple({"level":n_level, "adult1":adult1 , "adult2":adult2, "bio":isAdopted })
         for le_couple in les_couples:
             if le_couple.level != 1 : 
-                MH_personnes.append([le_couple.adult1,sujet,MH_cible,le_couple.level-1,get_personne_celebrity(sql_obj,le_couple.adult1)])
-                if le_couple.adult2 != MH_none : 
-                    MH_personnes.append([le_couple.adult2,sujet,MH_cible,le_couple.level-1,get_personne_celebrity(sql_obj,le_couple.adult2)])
+                if le_couple.adult1 not in temp_personne:
+                    temp_personne.append(le_couple.adult1)
+                    MH_personnes.append([le_couple.adult1,                                                  #0  personne
+                                         clef_tri,                                                          #1  clef_tri
+                                         MH_cible,                                                          #2  clef_tri of cible
+                                         le_couple.level-1,                                                 #3
+                                         get_personne_celebrity(sql_obj,le_couple.adult1),                  #4  celebrity 
+                                         True if get_personne_bios(sql_obj,le_couple.adult1) else False,    #5  with bio or not for bio_light
+                                         text_personne(le_couple.adult1,"byear")                            #6. birth year to sort
+                                         ])
+                if le_couple.adult2 != MH_none and le_couple.adult2 not in temp_personne:
+                    temp_personne.append(le_couple.adult2)
+                    MH_personnes.append([le_couple.adult2,clef_tri,MH_cible,le_couple.level-1,
+                                         get_personne_celebrity(sql_obj,le_couple.adult2),
+                                         True if get_personne_bios(sql_obj,le_couple.adult2) else False,
+                                         text_personne(le_couple.adult2,"byear")
+                                         ])
 
     else: # descendant
-        t = sujet
-        if sujet == "couzmater" : t = "cousinades maternelle"
-        elif sujet == "couzpater" : t = "cousinades paternelle"
         MH_items,le_level_max = get_personne_entourage(sql_obj,MH_cible,n_level_max,sujet)
         if MH_items : 
             for MH_item in MH_items:
                 if MH_item[0] > 0:
+                    #if sujet != "descendant" or  MH_item[0] != 1 : 
                     if sujet != "descendant" or  MH_item[0] != 1 : 
-                        MH_personnes.append([MH_item[1],t,MH_cible,MH_item[0]-1,get_personne_celebrity(sql_obj,MH_item[1])])
-                        if MH_item[2] != MH_none : MH_personnes.append([MH_item[2],t,MH_cible,MH_item[0]-1,get_personne_celebrity(sql_obj,MH_item[2])])
+                        if MH_item[1] not in temp_personne:
+                            temp_personne.append(MH_item[1])
+                            MH_personnes.append([MH_item[1],clef_tri,MH_cible,MH_item[0]-1,
+                                                 get_personne_celebrity(sql_obj,MH_item[1]),
+                                                 True if get_personne_bios(sql_obj,MH_item[1]) else False,
+                                                 text_personne(MH_item[1],"byear") 
+                                                 ])
+
+                    if MH_item[2] != MH_none and MH_item[2] not in temp_personne:
+                        temp_personne.append(MH_item[2])
+                        MH_personnes.append([MH_item[2],clef_tri,MH_cible,MH_item[0]-1,
+                                             get_personne_celebrity(sql_obj,MH_item[2]),
+                                             True if get_personne_bios(sql_obj,MH_item[2]) else False,
+                                             text_personne(MH_item[2],"byear") 
+                                             ])
 
     if isVerbose :
         for i in MH_personnes:
-            print("personne_feed:",text_personne_full(i[0]),i[1],text_personne_full(i[2]),i[3],i[4])
+            print(sujet,"personne_feed:",text_personne_full(i[0]),i[1],text_personne_full(i[2]),i[3],i[4],i[5],i[6])
 
     return MH_personnes
 #=============================================================================================================      
@@ -2221,9 +1918,10 @@ def PPTX_descendant_arbre_table(sql_obj,le_document,MH_personne,couple_ref,les_s
 #-------------------------------------------------------------------------------------------------------------
 #ZQW
     # le titre  
-    le_titre = f'Famille de {text_personne(MH_personne,"prenom")}'
+    #le_titre = f'Famille de {text_personne(MH_personne,"prenom")}'
+    le_titre = f'{les_sujets[0]}, {les_sujets[1]} et {les_sujets[2]} de {text_personne(MH_personne,"prenom")}'
     if couple_ref[0] != MH_none:
-        le_titre =f'{le_titre} {"fille" if MH_personne.sexe =="F" else "fils"} de {text_personne(couple_ref[0],"prenom", "nom")} et {text_personne(couple_ref[1],"prenom", "nom")}'
+        le_titre =f'Descendants de {text_personne(MH_personne,"prenom")}, {"fille" if MH_personne.sexe =="F" else "fils"} de {text_personne(couple_ref[0],"prenom", "nom")} et {text_personne(couple_ref[1],"prenom", "nom")}'
 
     n_level_start = 3
     for clef, valeur in kwargs.items():
@@ -2232,6 +1930,9 @@ def PPTX_descendant_arbre_table(sql_obj,le_document,MH_personne,couple_ref,les_s
             if clef == "n_level_start" : n_level_start = valeur
     #-------------------------------------------------------------------------------------------------------------  
     MH_entourages,le_level_max = get_personne_entourage(sql_obj,MH_personne,n_level_start,loption)
+    #print("le_level_max",le_level_max)
+    if le_level_max < 2 : return
+
     # list(level, Adult1, Adult2, Année naissance)
     if MH_entourages:
         n_row_max = (slide_height - 11) / image_size
@@ -2267,7 +1968,7 @@ def PPTX_descendant_arbre_table(sql_obj,le_document,MH_personne,couple_ref,les_s
             color_level = f'#{RGBColor(250-10*n_level,250-10*n_level,250-10*n_level)}'
         
             for k in range(0,2*(n_level)): 
-                col_format_level.append([image_size,"center","bold",20,Darkblue,White,Darkblue,White,1,1,1,1]) 
+                col_format_level.append([image_size,"center","normal",18,Darkblue,White,Darkblue,White,1,1,1,1]) 
 
             col_format_level.append([image_size,"center","normal",1,GraySide,color_level,GraySide,color_level,1,1,1,1]) 
             col_format_level.append([image_size,"center","normal",1,GraySide,color_level,GraySide,color_level,1,1,1,1]) 
@@ -2275,7 +1976,8 @@ def PPTX_descendant_arbre_table(sql_obj,le_document,MH_personne,couple_ref,les_s
             for k in range(2*(n_level),z_level):  
                 col_format_level.append([image_size,"center","normal",16,Black,color_level,Black,color_level,1,1,1,1])
 
-            col_format_level.append([slide_width-ml-(2*z_level)*image_size-10,"left","normal",14,Darkblue,color_level,Darkblue,color_level,2,1,mt,mb]) #noms et premons
+            col_format_level.append([slide_width-ml-(2*z_level)*image_size-10-90,"left","normal",14,Darkblue,color_level,Darkblue,color_level,2,1,mt,mb]) #noms et premons
+            col_format_level.append([90,"left","normal",14,Darkblue,color_level,Darkblue,color_level,2,1,mt,mb])#  info dates, places
             col_format_level.append([10,"center","bold",14,Darkblue,White,Darkblue,White,2,1,mt,mb])#  nenfant suite
 
             col_format_levels.append(col_format_level)
@@ -2300,7 +2002,33 @@ def PPTX_descendant_arbre_table(sql_obj,le_document,MH_personne,couple_ref,les_s
             MH_adult1 = MH_entourage[1]
             MH_adult2 = MH_entourage[2]
 
-            le_texte = text_couple(MH_adult1,MH_adult2)
+            #texte1 : Prénom,Nom
+            temp_le_texte = []
+            le_texte1 = ""
+            temp_le_texte.append(f'<strong>{text_personne(MH_adult1,"prenom")}</strong>')
+            temp_le_texte.append(f'{text_personne(MH_adult1,"nom")}')
+            le_texte1=" ".join(temp_le_texte)
+            if MH_adult2 != MH_none:
+                temp_le_texte = []
+                temp_le_texte.append(f'<strong>{text_personne(MH_adult2,"prenom")}</strong>')
+                temp_le_texte.append(f'{text_personne(MH_adult2,"nom")}')
+                if temp_le_texte: le_texte1=le_texte1+"\n"+" ".join(temp_le_texte)
+
+            #texte2 : dates et places
+            temp_le_texte = []
+            le_texte2 = ""
+            temp_le_texte.append(f'{text_personne(MH_adult1,"bville")}')
+            temp_le_texte.append(f'{text_personne(MH_adult1,"bdatebold")}')
+            temp_le_texte.append(f'{text_personne(MH_adult1,"ddatebold")}')
+            le_texte2=" ".join(temp_le_texte)
+
+            if MH_adult2 != MH_none: 
+                temp_le_texte = []
+                temp_le_texte.append(f'{text_personne(MH_adult2,"bville")}')
+                temp_le_texte.append(f'{text_personne(MH_adult2,"bdatebold")}')
+                temp_le_texte.append(f'{text_personne(MH_adult2,"ddatebold")}')
+                if temp_le_texte: le_texte2=le_texte2 + "\n" + " ".join(temp_le_texte)
+
             n_enfants = 0
             if n_level == le_level_max : 
                 MH_enfants = get_couple_enfants(sql_obj,MH_adult1,MH_adult2)
@@ -2316,7 +2044,8 @@ def PPTX_descendant_arbre_table(sql_obj,le_document,MH_personne,couple_ref,les_s
             for k in range(2*(z_level-n_level)): 
                 la_display_ligne.append(col_format_levels[n_level-1][k+2+ 2*(n_level-1)] + [None])
 
-            la_display_ligne.append(col_format_levels[n_level-1][-2] + [le_texte])
+            la_display_ligne.append(col_format_levels[n_level-1][-3] + [le_texte1])
+            la_display_ligne.append(col_format_levels[n_level-1][-2] + [le_texte2])
             la_display_ligne.append(col_format_levels[n_level-1][-1] + [f'> {n_enfants}' if n_enfants> 0 else None])
             display_table.append([isNew,isEven,max_n_col,la_display_ligne,0])            
             isNew = False
@@ -2369,11 +2098,16 @@ def PPTX_descendant_group_table(sql_obj,le_document,MH_personne,les_sujets,n_lev
             if clef == "titre" : le_titre = valeur
 #-------------------------------------------------------------------------------------------------------------
     ml = 20
-    col_format_label =  [[slide_width-ml,"center","normal",16,Black,GraySide,Black,GraySide,1,1,1,1]]
-    col_format_1 =      [[slide_width-ml,"center","normal",16,White,Darkblue,White,Darkblue,1,1,1,1]]
-    col_format_ligne =  [[slide_width-ml,"center","normal",14,Darkblue,cell21,Darkblue,cell21,1,1,1,1]]
-    
-    max_n_col = len(col_format_1)-1
+    mbt = mbb = mbl = mbr =0.5
+    col_format_label =  [[slide_width-ml,"center","normal",18,Black,GraySide,Black,GraySide,1,1,1,1]]
+    col_format_1 =      [[slide_width-ml,"center","normal",18,White,Darkblue,White,Darkblue,1,1,1,1]]
+
+    col_format_ligne =  [
+        [17,"center","bold",14,Darkblue,White,Darkblue,GrayRow,mbl,mbr,mbt,mbb], # byear
+        [slide_width - ml-17,"center","normal",14,Darkblue,White,Darkblue,GrayRow,mbl,mbr,mbt,mbb], # prenom nom
+        ]
+        
+    max_n_col = len(col_format_ligne) - 1
     le_header =     [True,False,max_n_col,[col_format_label[0] + [f'{le_titre}']],0,MH_personne]
 #-------------------------------------------------------------------------------------------------------------
     MH_entourages,le_level_max = get_personne_entourage(sql_obj,MH_personne,n_level_max,loption)
@@ -2388,85 +2122,59 @@ def PPTX_descendant_group_table(sql_obj,le_document,MH_personne,les_sujets,n_lev
             entourages_level = filter(lambda c: (c[0]==n_level),MH_entourages)
             entourages_level = sorted(entourages_level, key=lambda col: (col[3]) )
             # le titre
-            if n_level < 4: t_titre = f'{les_sujets[n_level-1]}: {len(entourages_level)}' 
+            if n_level <= len(les_sujets): t_titre = f'{les_sujets[n_level-1]}: {len(entourages_level)}' 
             else : t_titre = f'Niveau {n_level-1}: {len(entourages_level)}' 
             
             if n_level > 2 :isNew = True
             display_table.append( [isNew,False,max_n_col,[col_format_1[0] + [f'{t_titre}']],0,MH_personne])
             isNew =False
 
-            for item in entourages_level:
-                display_table.append( [isNew,isEven,max_n_col,[col_format_ligne[0] + [text_couple(item[1],item[2],"simple")]],0,MH_personne])
-                isNew =False
+            MH_adult1_prev = MH_none
+            for idx,item in enumerate(entourages_level):
+#ZZOB           
+                if idx == 0 and loption == "descendant" and n_level == 1:
+                    item[1] = item[2]
+                    item[2] = MH_none
+                
                 isEven = False if isEven else True
-                                                          
+                
+                #texte1 : Prénom,Nom
+                temp_le_texte = []
+                le_texte1 = ""
+                temp_le_texte.append(f'<strong>{text_personne(item[1],"prenom")}</strong>')
+                temp_le_texte.append(f'<strong>{text_personne(item[1],"nom")}</strong>')
+                temp_le_texte.append(f'{text_personne(item[1],"prenoms")}')
+                
+                if item[2] != MH_none:
+                    temp_le_texte.append('et')
+                    temp_le_texte.append(f'{text_personne(item[2],"prenom")}')
+                    temp_le_texte.append(f'{text_personne(item[2],"nom")}')
+                    temp_le_texte.append(f'{text_personne(item[2],"prenoms")}')
+
+                
+                if temp_le_texte: le_texte1 = " ".join(temp_le_texte)
+
+                display_table.append( [isNew,isEven,max_n_col,
+                                    [col_format_ligne[0] + [text_personne(item[1],"byear")],
+                                     col_format_ligne[1] + [le_texte1],
+                                        ]    
+                                    ,0,MH_personne])
+
+                isNew =False
+                                                       
         if display_table:
     #------------------------------------------------------------------------------------------------------------------
-            PPTX_table_display(sql_obj,le_document,col_format_1,le_header,display_table,box_sommaire,x_table = ml)
+            PPTX_table_display(sql_obj,le_document,col_format_ligne,le_header,display_table,box_sommaire,x_table = ml,le_sommaire = le_titre)
     #------------------------------------------------------------------------------------------------------------------
     return 
 #=============================================================================================================
-def PPTX_ascendant_draw(sql_obj,le_document,MH_personne,n_col,le_sujet,box_sommaire,*args):  
-    isSingle = False
+def PPTX_ascendant_table(sql_obj,le_document,MH_personne,les_lignées,n_level_max,n_rang,image_size,*args):
+
+    isLoop = True
     for valeur in args:
         if valeur:
             if isinstance(valeur, str): valeur =valeur.lower()
-            if valeur == "single" : isSingle = True   
-    #-------------------------------------------------------------------------------------------------------------
-    MH_ascendants_max = get_personne_ascendants(sql_obj,MH_personne,[],0,n_col+1)
-    #MH_ascendants = MH_couple({"level":n_level, "adult1":adult1 , "adult2":adult2, "bio":isAdopted }))
-    #-------------------------------------------------------------------------------------------------------------
-    if len(MH_ascendants_max) > 1: 
-    #-------------------------------------------------------------------------------------------------------------
-        #titres"
-
-        le_titre = f'{" ".join(le_sujet)} de {text_personne(MH_personne,"prenom")}'
-        la_page,boxes = PPTX_add_page(le_document,slide_layout_ascendants_4)
-        PPTX_add_ligne_sommaire(box_sommaire,le_document,la_page,le_titre)
-        PPTX_add_run(PPTX_add_paragraph(boxes[0]),le_titre,size = 18)
-
-        # inititalisation des tailles
-        n_row=1
-        for x in range(n_col):
-            n_row = n_row*2
-        n_row = n_row + 1
-
-        if n_col < 5 : gap_x = 10
-        else:gap_x = 3
-        gap_y = 1
-        box_width = (slide_width - slide_margin_left - slide_margin_right - ((n_col-1) * gap_x) ) / n_col
-        box_height = (slide_height - slide_margin_bottom - ((n_row-1) * gap_y) ) / n_row
-        image_size = box_height
-        #-------------------------------------------------------------------------------------------------------
-        #Ajout des personnes
-        for idx,couple in enumerate(MH_ascendants_max):
-            MH_adult1 = couple.adult1
-            if idx == 0:
-
-                x0 = slide_margin_left                
-                y0 = 0 
-
-                x = x0
-                y=y0
-
-                i_row = 2
-            else:       
-                i_col = couple.level-1
-                if couple.adult1.sexe == "F" : i_row = i_row + 1
-
-                x = x0  + (i_col-1) * (box_width + gap_x )
-                y = y0 + (i_row-1) * (box_height + gap_y)
-
-                # ajout fleche gauche
-                la_page.shapes.add_picture(icloud+'/MesProgrammes/MH_Photos/FLECHE_GAUCHE.png',
-                                                        Mm(x-gap_x),Mm(y),Mm(gap_x),Mm(box_height))
-
-            PPTX_add_couple_xy(sql_obj,la_page,x,y,box_width,box_height,image_size,MH_adult1,"ascendants",type_date = 2)
-                                                        
-#-------------------------------------------------------------------------------------------------------------
-    return 
-#=============================================================================================================
-def PPTX_ascendant_table(sql_obj,le_document,MH_personne,les_lignées,n_level_max,n_rang,image_size):
+            if valeur == "noloop" : isLoop = False    
 
     MH_ascendants = get_personne_ascendants(sql_obj,MH_personne,[],0,n_level_max) 
     #MH_couple({"level":n_level, "adult1":adult2 , "adult2":adult1, "bio":isAdopted })
@@ -2478,7 +2186,7 @@ def PPTX_ascendant_table(sql_obj,le_document,MH_personne,les_lignées,n_level_ma
 
         wtable = slide_width - ml
         wlevel = 10
-        c = [image_size,10,0,15,15,40,30,30,10]
+        c = [image_size,10,0,15,15,30,40,35,10]
         c[2] = wtable - sum(c)
 
         max_n_col = 0
@@ -2520,9 +2228,9 @@ def PPTX_ascendant_table(sql_obj,le_document,MH_personne,les_lignées,n_level_ma
             col_format_level.append([wtable - c[0] - c[1] - (n_level * wlevel) -sum(c[3:]) ,"left","normal",14,White,la_couleur_rang,White,la_couleur_rang,2,1,mt,mb]) #noms et premons
             col_format_level.append([c[3],"center","normal",14,Darkblue,la_couleur_level,Darkblue,la_couleur_level,0,0,0,0])#  byear
             col_format_level.append([c[4],"center","normal",14,Darkblue,la_couleur_level,Darkblue,la_couleur_level,0,0,0,0])#  dyear
-            col_format_level.append([c[5],"center","normal",14,Darkblue,la_couleur_level,Darkblue,la_couleur_level,0,0,0,0])#  bcity
-            col_format_level.append([c[6],"center","normal",14,Darkblue,la_couleur_level,Darkblue,la_couleur_level,0,0,0,0])#  bregion
-            col_format_level.append([c[7],"center","normal",14,Darkblue,la_couleur_level,Darkblue,la_couleur_level,0,0,0,0])#  bcountry
+            col_format_level.append([c[5],"center","normal",14,Darkblue,la_couleur_level,Darkblue,la_couleur_level,0,0,0,0])#  bville
+            col_format_level.append([c[6],"center","normal",14,Darkblue,la_couleur_level,Darkblue,la_couleur_level,0,0,0,0])#  bdepartement
+            col_format_level.append([c[7],"center","normal",14,Darkblue,la_couleur_level,Darkblue,la_couleur_level,0,0,0,0])#  bpays
             col_format_level.append([c[8],"left","bold",20,la_couleur_rang,White,la_couleur_rang,White,0,0,0,0])#  suivant
             
             col_format_levels.append(col_format_level)
@@ -2561,7 +2269,7 @@ def PPTX_ascendant_table(sql_obj,le_document,MH_personne,les_lignées,n_level_ma
         isNew = True
         isEven = False
 
-        if n_rang > 0:
+        if n_rang  > 0 and les_lignées:
             display_table.append([isNew,isEven, max_n_col,      
                                     [col_lignée_format[0] + [None],
                                      col_lignée_format[1] + [la_lignée_texte],
@@ -2597,9 +2305,9 @@ def PPTX_ascendant_table(sql_obj,le_document,MH_personne,les_lignées,n_level_ma
                 la_display_ligne.append(col_format_levels[n_level][2+n_level] + [le_texte])
                 la_display_ligne.append(col_format_levels[n_level][3+n_level] + [f'{text_personne(MH_adult1,"byear")}'])
                 la_display_ligne.append(col_format_levels[n_level][4+n_level] + [f'{text_personne(MH_adult1,"dyear")}'])
-                la_display_ligne.append(col_format_levels[n_level][5+n_level] + [f'{text_personne(MH_adult1,"bcity")}'])
-                la_display_ligne.append(col_format_levels[n_level][6+n_level] + [f'{text_personne(MH_adult1,"bregion")}'])
-                la_display_ligne.append(col_format_levels[n_level][7+n_level] + [f'{text_personne(MH_adult1,"bcountry")}'])
+                la_display_ligne.append(col_format_levels[n_level][5+n_level] + [f'{text_personne(MH_adult1,"bville")}'])
+                la_display_ligne.append(col_format_levels[n_level][6+n_level] + [f'{text_personne(MH_adult1,"bdepartement")}'])
+                la_display_ligne.append(col_format_levels[n_level][7+n_level] + [f'{text_personne(MH_adult1,"bpays")}'])
                 
                 la_display_ligne.append(col_format_levels[n_level][8+n_level] + ["⫷" if MH_parents else " "])
 
@@ -2629,10 +2337,106 @@ def PPTX_ascendant_table(sql_obj,le_document,MH_personne,les_lignées,n_level_ma
         #----------------------------------------------------------------------------------------------------------    
                 PPTX_table_row_display_photoID_in_cell(sql_obj,la_table,table_row)
             
-        if les_suivants:
+        if les_suivants and isLoop:
             
             for MH_item in les_suivants:
                 PPTX_ascendant_table(sql_obj,le_document,MH_item,les_lignées,n_level_max,n_rang + max_n_level,15)
 
     return
 #=============================================================================================================
+def PPTX_group_table(sql_obj,le_document,MH_personnes,le_mode):
+
+
+    ml = 10
+    c = [50,10,0]
+    c[-1] = slide_width-ml - sum(c[:-1])
+
+    col_format = [
+                [c[0],"left","normal",14,White,Darkblue,White,Darkblue,1,1,1,1], 
+                [c[1],"center","normal",14,White,Darkblue,White,Darkblue,1,1,1,1], 
+                [c[2],"left","normal",14,Darkblue,White,Darkblue,GrayRow,2,1,1,1],
+
+                ]
+    
+    max_n_col = len(col_format)-1
+
+    col_header_format = [[slide_width-ml,"center","normal",14,Black,GraySide,Black,GraySide,1,1,1,1]]
+    le_header = [True,True,max_n_col,[col_header_format[0] + [le_mode]],0]
+
+    
+    temp_MH = []
+
+    groups = defaultdict(list)  
+    for MH_item in MH_personnes:
+        if MH_item[0] not in temp_MH:
+            MH_personne = MH_item[0]
+            temp_MH.append(MH_personne)
+            le_patronyme = text_personne(MH_personne,"nom")
+
+            if le_patronyme != "MH_None":
+                if le_mode == "Pays - Patronymes":
+                    le_pays = text_personne(MH_personne,"bpays")
+                    if le_pays : groups[le_pays].append(le_patronyme)
+
+                elif le_mode == "Région - Patronymes":
+                    la_region = text_personne(MH_personne,"bregion")
+                    if la_region : groups[la_region].append(le_patronyme)
+
+                elif  le_mode == "Département - Patronymes":
+                    le_département = text_personne(MH_personne,"bdepartement")
+                    if le_département : groups[le_département].append(le_patronyme)
+
+                elif le_mode == "Ville - Patronymes":
+                    la_ville = text_personne(MH_personne,"bville")
+                    if la_ville : groups[la_ville].append(le_patronyme)
+
+                elif  le_mode == "Patronyme - Villes" :
+                    la_ville = text_personne(MH_personne,"bville")
+                    groups[le_patronyme].append(la_ville)
+
+                elif  le_mode == "Métier - Patronymes":
+                    les_occus = get_personne_events(MH_personne,even="OCCU")
+                    if les_occus:
+                        for la_occu in les_occus:
+                            groups[la_occu.description].append(le_patronyme)
+    
+    display_table = []
+    isNew = True
+    isEven = True
+
+    #for key, value in groups.items():
+    #   print(f"{len(value):2d}×  {key!r} → {value}")
+    #--------------------------------------------------------------------------------------   
+    if groups :         
+        for key, value in groups.items():
+
+            if key != "MH_None":
+
+                temp_texte2 = []
+                temp_dictlist = Counter(value)
+                for item, nb in temp_dictlist.items():
+
+                    if item != "MH_None":
+                        temp_texte2.append(f'{item}')
+
+                if temp_texte2 : 
+                
+                    display_table.append( 
+                                        [isNew,isEven,max_n_col,
+                                            [
+                                                col_format[0] + [key],
+                                                col_format[1] + [f'{len(value):2d}'],
+                                                col_format[2] + [f'{", ".join(temp_texte2)}']
+                                            ] , 0
+                                        ]  
+                                        )     
+                    isNew = False
+                    isEven = False if isEven else True
+
+                                
+    if display_table:
+    #------------------------------------------------------------------------------------------------------------------
+        PPTX_table_display_photoID_in_cell(sql_obj,le_document,col_format,le_header,display_table,None,None,
+                                            x_table=ml,image_width=c[0])
+       
+    return

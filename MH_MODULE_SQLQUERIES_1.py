@@ -7,35 +7,6 @@ from PIL import Image
 icloud = "/Users/bernardconti/Library/Mobile Documents/com~apple~CloudDocs"
 les_WIP = "/Users/bernardconti/LOCAL_TEMP/WIP/"
 le_MH_Photos_Bio = icloud+'/MesProgrammes/MH_Photos_Bio/'
-#--------------------------------------------------------------
-#Gray= "#EFEEEF"
-#GrayRow= "#EFEEEF"
-#Black ="#000000"
-#White = "#FFFFFF"
-#couleur_homme ="#ffcc99"
-#couleur_femme="#ccccff"
-#font_texte ="arial narrow"
-#couleur_cible = "#30DD30"
-#Gray1= "#b7b1b1"#F2F2F2
-#GraySide = "#c5c5c5"
-#Gray3 ="#D9D6D6"
-#Gray4 = "#E1DEDEEF"
-#couleur_chemin = "#EC5800"
-#couleur_titre ="#EB742F"
-#Green = "#B4E1C0"
-#Gray2= "#fde9d9"
-#Silver = "#A9A6A6" 
-#cell11 = "#F8CEB8"
-#cell12 = "#D9D9D9"
-#cell21 = "#FDE8DD"
-#cell22 = "#F2F2F2"
-#Bleu = "#375e94"
-#Bleu = "#272170"
-#Darkblue = "#166082"
-#Gris_clair = "#EFEFEF"
-#ligne = "#375e94"
-#descendant = "#000000"
-#red = "#FF0000"
 #============================================================================================================
 class MH_individual(object):
     def __init__(self, dictionary):
@@ -47,6 +18,9 @@ class MH_individual(object):
             else : return False #print("different values")
         else: return False #print("different dict")
 #============================================================================================================
+MH_none = MH_individual({'indi_id': 0, 'nom': None, 'prenom': None, 'prenoms': None, 'surnom': None, 
+        'sexe': None, 'bdate': None, 'bplace': None, 'isdead': None, 'ddate': None, 'dplace': None, 'cause': None})
+#============================================================================================================
 class photo(object):
     def __init__(self, dictionary):
         for key, value in dictionary.items():
@@ -56,9 +30,6 @@ class photo(object):
             if (list(self.__dict__.values())) == (list(other.__dict__.values())): return True #print("same value")
             else : return False #print("different values")
         else: return False #print("different dict")
-#============================================================================================================
-MH_none = MH_individual({'indi_id': 0, 'nom': None, 'prenom': None, 'prenoms': None, 'surnom': None, 
-        'sexe': None, 'bdate': None, 'bplace': None, 'isdead': None, 'ddate': None, 'dplace': None, 'cause': None})
 #============================================================================================================
 class MH_couple(object):
     def __init__(self, dictionary):
@@ -92,160 +63,161 @@ def text_personne_full(MH_personne,*args):
     for v in args:
         if v.lower() == "nosurnom" : isNosurnom = True
     if MH_personne != MH_none:
-        text = f"{MH_personne.prenom if MH_personne.prenom else "prenom_???"} {MH_personne.nom if MH_personne.nom else "nom_???"}{" , "+MH_personne.prenoms if MH_personne.prenoms else ""}{' "'+MH_personne.surnom+'"' if MH_personne.surnom and not isNosurnom else ''}"
+        text = text_personne(MH_personne, "prenom","nom","prenom","surnom" if isNosurnom else "", "bdyear")
     else: text = "MH_none"
     return text
 #=============================================================================================================
 def text_personne(MH_personne,*args):
 #=============================================================================================================
-    le_name=""
-    les_names = []
-    isOption = [False]*17
-
-    for valeur in args:
-        if valeur:
-            if isinstance(valeur, str): valeur =valeur.lower()
-            if valeur == "prenom"       : isOption[0]   =  True
-            if valeur == "prenoms"      : isOption[1]   =  True
-            if valeur == "nom"          : isOption[2]   =  True
-            if valeur == "surnom"       : isOption[3]   =  True
-            if valeur == "sexe"         : isOption[4]   =  True
-            if valeur == "bdate"        : isOption[5]   =  True
-            if valeur == "byear"        : isOption[6]   =  True
-            if valeur == "bplace"       : isOption[7]   =  True
-            if valeur == "bcity"        : isOption[8]   =  True
-            if valeur == "ddate"        : isOption[9]   =  True
-            if valeur == "dyear"        : isOption[10]  =  True
-            if valeur == "dplace"       : isOption[11]  =  True
-            if valeur == "dcity"        : isOption[12]  =  True
-            if valeur == "lacause"      : isOption[13]  =  True
-            if valeur == "bdyear"       : isOption[14]  =  True
-            if valeur == "bcountry"     : isOption[15]  =  True
-            if valeur == "bregion"      : isOption[16]  =  True
-
-    le_name = ""
-    if MH_personne == MH_none : le_name = "MH_None"
+    if len(args) == 0 : 
+        print("text_personne sans argument")
+        return
     else:
-        byear = None
-        dyear = None
-        if MH_personne.bdate : la_bdate = MH_personne.bdate
-        else : la_bdate = "?? ??? ????"
-        byear = la_bdate.split(" ")[-1]
+        isAll          = False
+        isPrenom      =  False
+        isPrenoms     =  False
+        isNom         =  False
+        isSurnom      =  False
+        isSexe        =  False
 
-        if MH_personne.isdead:
-            if MH_personne.ddate : la_ddate = MH_personne.ddate
-            else: la_ddate = "?? ??? ????"
-            dyear = "†"+la_ddate.split(" ")[-1]
-        else: la_ddate = None
+        isBdate       =  False
+        isBdatebold   =  False
+        isByear       =  False
+        isBdyear      =  False
 
-        bcity = None
-        bregion = None
-        bcountry = None
+        isBville      =  False
+        isBdepartement=  False
+        isBregion     =  False
+        isBpays       =  False
 
-        if MH_personne.bplace : 
-            temp_place = MH_personne.bplace.split(",")
-            bcity = temp_place[0].lstrip().title()
-            if len(temp_place) > 1 : bregion = temp_place[1].lstrip().title()
-            if len(temp_place) > 2 : bcountry = temp_place[-1].lstrip().upper()
+        isDdate       =  False
+        isDdatebold   =  False
+        isDyear       =  False
+        isDville      =  False
+        isDdepartement=  False
+        isDregion     =  False
+        isDpays       =  False
+        isCause       =  False
+        isBDyear       =  False
 
-        if MH_personne.dplace : dcity = MH_personne.dplace.split(",")[0].lstrip().capitalize()
+        #print(args)
 
-        if isOption[0] and MH_personne.prenom       : les_names.append(MH_personne.prenom)
-        if isOption[1] and MH_personne.prenoms      : les_names.append(MH_personne.prenoms)
-        if isOption[2] and MH_personne.nom          : les_names.append(MH_personne.nom)
-        if isOption[3] and MH_personne.surnom       : les_names.append(f'"{MH_personne.surnom}"')
-        if isOption[4] and MH_personne.sexe         : les_names.append(MH_personne.sexe)
-        if isOption[5] and MH_personne.bdate        : les_names.append(la_bdate)
-        if isOption[6] and byear                    : les_names.append(byear)
-        if isOption[7] and MH_personne.bplace       : les_names.append(MH_personne.bplace)
-        if isOption[8] and MH_personne.bplace       : les_names.append(bcity)
-        if isOption[9] and MH_personne.ddate        : les_names.append(la_ddate)
-        if isOption[10] and dyear                   : les_names.append(dyear)
-        if isOption[11] and MH_personne.dplace      : les_names.append(MH_personne.dplace)
-        if isOption[12] and MH_personne.dplace      : les_names.append(dcity)
-        if isOption[13] and MH_personne.cause       : les_names.append(MH_personne.cause)
-        if isOption[14] :
-            if byear and dyear : les_names.append(f'({byear}-{dyear})')
-            elif byear and not dyear : les_names.append(f'({byear})')
+        for valeur in args:
+            if valeur:
+                if isinstance(valeur, str): valeur =valeur.lower()
+                if valeur == "all"          : isAll         =  True
+                if valeur == "prenom"       : isPrenom      =  True
+                if valeur == "prenoms"      : isPrenoms     =  True
+                if valeur == "nom"          : isNom         =  True
+                if valeur == "surnom"       : isSurnom      =  True
+                if valeur == "sexe"         : isSexe        =  True
 
-        
-        if isOption[15] and MH_personne.bplace: les_names.append(f'{bcountry}')
-        if isOption[16] and MH_personne.bplace: les_names.append(f'{bregion}')
-        
-    
+                if valeur == "bdate"        : isBdate       =  True
+                if valeur == "bdatebold"    : isBdatebold   =  True
+                if valeur == "byear"        : isByear       =  True
+                
+                if valeur == "bville"       : isBville      =  True
+                if valeur == "bdepartement" : isBdepartement=  True
+                if valeur == "bregion"      : isBregion     =  True
+                if valeur == "bpays"        : isBpays       =  True
 
-        if les_names: le_name=" ".join(les_names)
-    return le_name
-#=============================================================================================================
-def search_country(bplace): 
-#-------------------------------------------------------------------------------------------------------------
-    bcountry = "FRANCE"
-# liste des pays
-    from pays import Countries
-    countries = Countries('fra')
-    les_pays = []
-    for country in countries:  # générateur
-        les_pays.append(country.name.lower())
+                if valeur == "ddate"        : isDdate       =  True
+                if valeur == "ddatebold"    : isDdatebold   =  True
+                if valeur == "dyear"        : isDyear       =  True
+                if valeur == "dville"       : isDville      =  True
+                if valeur == "ddepartement" : isDdepartement=  True
+                if valeur == "dregion"      : isDregion     =  True
+                if valeur == "dpays"        : isDpays       =  True
+                if valeur == "lacause"      : isCause       =  True
 
-    if bplace : 
-        country = "FRANCE"
-        for le_pays in les_pays:
-            if le_pays in bplace.lower():
-                bcountry = le_pays.upper()
-                break
+                if valeur == "bdyear"       : isBDyear      =  True
 
-    return bcountry
-#=============================================================================================================
-def text_couple(MH_adult1,MH_adult2,*args):
-#=============================================================================================================
-    le_mode = "complet"
-    for c in args:
-        if c =="simple" : le_mode = "simple"
+        if isAll : return vars(MH_personne)
 
-    le_texte = ""
-    temp_le_texte = []
-    if MH_adult1 == MH_none: le_texte = text_personne_full(MH_adult1)
-    else:        
-        #=====================================================================================================
-        if le_mode == "simple":
-            if MH_adult1.prenom       : temp_le_texte.append(f'<strong>{MH_adult1.prenom}</strong>')
-            if MH_adult1.nom          : temp_le_texte.append(f'{MH_adult1.nom}')
-            if MH_adult1.bdate        : temp_le_texte.append(MH_adult1.bdate.split(" ")[-1])
-            if MH_adult1.bplace       : temp_le_texte.append(f'à {MH_adult1.bplace.split(",")[0].capitalize()}')
-
-            if MH_adult2 != MH_none:
-                temp_le_texte.append(f'et')
-                if MH_adult2.prenom       : temp_le_texte.append(f'<strong>{MH_adult2.prenom}</strong>')
-                if MH_adult2.nom          : temp_le_texte.append(f'{MH_adult2.nom}')
-                if MH_adult2.bdate        : temp_le_texte.append(MH_adult2.bdate.split(" ")[-1])
-                if MH_adult2.bplace       : temp_le_texte.append(f'à {MH_adult2.bplace.split(",")[0].capitalize()}')
-        #======================================================================================================
-        # mode complet
+        le_name=""
+        les_names = []
+        if MH_personne == MH_none : le_name = "MH_None"
         else:
-            conjugaison = "e" if MH_adult1.sexe == "F" else ""
-            if MH_adult1.prenom       : temp_le_texte.append(f'<strong>{MH_adult1.prenom}</strong>')
-            if MH_adult1.nom          : temp_le_texte.append(f'{MH_adult1.nom}')
-            if MH_adult1.prenoms       : temp_le_texte.append(f'{MH_adult1.prenoms}')
-            if MH_adult1.surnom       : temp_le_texte.append(f'"{MH_adult1.surnom}"')
-            if MH_adult1.bdate        : temp_le_texte.append(f',né{conjugaison} le {MH_adult1.bdate}')
-            if MH_adult1.bplace       : temp_le_texte.append(f'à {MH_adult1.bplace.split(",")[0].capitalize()}')
-            if MH_adult1.ddate        : temp_le_texte.append(f'†{MH_adult1.bdate}')
-            if MH_adult1.dplace       : temp_le_texte.append(f'à {MH_adult1.dplace.split(",")[0].capitalize()}')
 
-            if MH_adult2 != MH_none:
-                conjugaison = "e" if MH_adult2.sexe == "F" else ""
-                temp_le_texte.append(f'et')
-                if MH_adult2.prenom       : temp_le_texte.append(f'<strong>{MH_adult2.prenom}</strong>')
-                if MH_adult2.nom          : temp_le_texte.append(f'{MH_adult2.nom}')
-                if MH_adult2.prenoms       : temp_le_texte.append(f'{MH_adult2.prenoms}')
-                if MH_adult2.surnom       : temp_le_texte.append(f'"{MH_adult2.surnom}"')
-                if MH_adult2.bdate        : temp_le_texte.append(f',né{conjugaison} le {MH_adult2.bdate}')
-                if MH_adult2.bplace       : temp_le_texte.append(f'à {MH_adult2.bplace.split(" ")[0].capitalize()}')
-                if MH_adult2.ddate        : temp_le_texte.append(f'†{MH_adult2.bdate}')
-                if MH_adult2.dplace       : temp_le_texte.append(f'à {MH_adult2.dplace.split(" ")[0].capitalize()}')
+            if isPrenom         and MH_personne.prenom           : les_names.append(MH_personne.prenom)
+            if isNom            and MH_personne.nom              : les_names.append(MH_personne.nom)
+            if isPrenoms        and MH_personne.prenoms          : les_names.append(MH_personne.prenoms)
+            if isSurnom         and MH_personne.surnom           : les_names.append(MH_personne.surnom)
+            if isSexe       and MH_personne.sexe                 : les_names.append(MH_personne.sexe)
+            
+            # birth dates
+            if  MH_personne.bdate:
+                if isBdate                                        : les_names.append(MH_personne.bdate)
+                if isByear                                        : les_names.append(MH_personne.bdate.split(" ")[-1])
+                if isBdatebold                                    : 
+                    t = MH_personne.bdate.lower()
+                    t = t.replace("janvier","01")
+                    t = t.replace("février","02")
+                    t = t.replace("mars","03")
+                    t = t.replace("avril","04")
+                    t = t.replace("mai","05")
+                    t = t.replace("juin","06")
+                    t = t.replace("juillet","07")
+                    t = t.replace("août","08")
+                    t = t.replace("septembre","09")
+                    t = t.replace("octobre","10")
+                    t = t.replace("novembre","11")
+                    t = t.replace("décembre","12")
+                    t = t.replace(" ","/")
+                    temp_date = t.split("/")
+                    if len(temp_date) == 3 : les_names.append(f'{int(temp_date[0]):02d}/{temp_date[1]}/<STRONG>{temp_date[-1]}</STRONG>')
+                    else : les_names.append(f'<STRONG>{t}</STRONG>')
 
-        if temp_le_texte: le_texte=" ".join(temp_le_texte)
-    return le_texte 
+            #birth places
+            if isBville  and MH_personne.bville                           : les_names.append(MH_personne.bville)
+            if isBdepartement  and MH_personne.bdepartement               : les_names.append(MH_personne.bdepartement)
+            if isBregion  and MH_personne.bregion                         : les_names.append(MH_personne.bregion)
+            if isBpays    and MH_personne.bpays                           : les_names.append(MH_personne.bpays)
+
+            # birth dates
+            if  MH_personne.ddate:
+                if isDdate                                        : les_names.append(MH_personne.ddate)
+                if isDyear                                        : les_names.append(f'†{MH_personne.ddate.split(" ")[-1]}')
+                if isDdatebold                                    : 
+                    t = MH_personne.bdate.lower()
+                    t = t.replace("janvier","01")
+                    t = t.replace("février","02")
+                    t = t.replace("mars","03")
+                    t = t.replace("avril","04")
+                    t = t.replace("mai","05")
+                    t = t.replace("juin","06")
+                    t = t.replace("juillet","07")
+                    t = t.replace("août","08")
+                    t = t.replace("septembre","09")
+                    t = t.replace("octobre","10")
+                    t = t.replace("novembre","11")
+                    t = t.replace("décembre","12")
+                    t = t.replace(" ","/")
+                    temp_date = t.split("/")
+                    if len(temp_date) == 3 : les_names.append(f'{int(temp_date[0]):02d}/{temp_date[1]}/<STRONG>{temp_date[-1]}</STRONG>')
+                    else : les_names.append(f'<STRONG>{t}</STRONG>')
+
+
+            #death places
+            if isDville  and MH_personne.dville                           : les_names.append(MH_personne.dville)
+            if isDdepartement  and MH_personne.ddepartement               : les_names.append(MH_personne.ddepartement)
+            if isDregion  and MH_personne.dregion                         : les_names.append(MH_personne.dregion)
+            if isDpays  and MH_personne.dpays                             : les_names.append(MH_personne.dpays)
+
+            if isCause    and MH_personne.cause                           : les_names.append(MH_personne.cause)
+
+            #bdyear
+            if isBDyear or isAll:
+                if MH_personne.bdate and MH_personne.ddate: 
+                    les_names.append(f'({MH_personne.bdate.split(" ")[-1]}-†{MH_personne.ddate.split(" ")[-1]})')
+                elif MH_personne.bdate and not MH_personne.ddate: 
+                    les_names.append(f'({MH_personne.bdate.split(" ")[-1]})')
+                elif not MH_personne.bdate and MH_personne.ddate: 
+                    les_names.append(f'(????-†{MH_personne.ddate.split(" ")[-1]})')
+
+            #concatenate les_names
+            if les_names: le_name=" ".join(les_names)
+        return le_name
 #============================================================================================================= 
 # PERSONNE
 #============================================================================================================= 
@@ -265,12 +237,13 @@ def select_table_join(JOIN_TYPE,TAB_FROM,TAB_TO,common_col):
     return SELECT_JOIN
 #=============================================================================================================
 def select_table_show_all_rows(sql_obj,table):
-    idx =0
+
     le_select = f'SELECT {table}.* FROM {table}'
     sql_obj.execute(le_select)
-    for idx,row in enumerate(sql_obj.fetchall()):
-        print(dict(row))
-    return idx+1
+    les_rows = []
+    for row in sql_obj.fetchall():
+        les_rows.append(dict(row))
+    return les_rows
 #=============================================================================================================
 def get_personne_by_indi_id(sql_obj,indi_id):
 #=============================================================================================================
@@ -704,17 +677,15 @@ def get_personne_entourage(sql_obj,MH_personne,n_level_max,loption):
                     MH_entourages_new.append([MH_couple.level,MH_couple.adult1,MH_couple.adult2,la_year,MH_couple.adult1.sexe,MH_couple.bio])
 
         else:
-            if MH_couples[0].adult2 != MH_none:
+            if MH_couples[0].adult2 != MH_none or loption != "descendant":
                 for MH_couple in MH_couples:
-                    #MH_couple)
                     le_level_max = max(MH_couple.level,le_level_max)
                     if MH_couple.adult1.bdate :
                         la_year = MH_couple.adult1.bdate.split(" ")[-1]
                     else: la_year ="????"
-                    #les_parents = get_personne_parents(sql_obj,MH_couple.adult1)
                     MH_entourages_new.append([MH_couple.level,MH_couple.adult1,MH_couple.adult2,la_year])
-            else:
-                MH_couple = []
+            #else:
+                #MH_couple = []
         
     return MH_entourages_new,le_level_max
 #=============================================================================================================
@@ -801,9 +772,6 @@ def get_couple_enfants(sql_obj,MH_adult1,MH_adult2):
             MH_enfants.append(item)
     return MH_enfants,n_enfant
 #=============================================================================================================
-
-
-#OLD
 # COUPLE
 #=============================================================================================================
 def get_couple_descendants_n_level(MH_adult1,MH_adult2,n):
@@ -856,4 +824,5 @@ def get_couple_descendants(MH_get_personne_descendants,MH_adult1,MH_adult2,n_lev
 #------------------------------------------------------------------------------------------------------------- 
     return MH_get_personne_descendants
 #=============================================================================================================
+
 

@@ -1,10 +1,14 @@
 import os
 import sqlite3
+import sys
 
 # file management
 import glob
 import os.path
 from html.parser import HTMLParser
+
+sys.path.append(os.path.dirname(__file__))
+from MH_MODULE_GEO_1 import *
 
 list_events = ["Décoration","Distinction","Degree","Diplôme",
                 "Military Service","Award","Honors","Title","Titre",
@@ -48,10 +52,10 @@ def clean_place(la_place):
         clean_place = clean_place.replace('[',',')
         clean_place = clean_place.replace(')',',')
         clean_place = clean_place.replace(']',', ')
-        clean_place = clean_place.replace('-',' ')
+        #clean_place = clean_place.replace('-',' ')
         clean_place = clean_place.replace(', ',',')
-        clean_place = clean_place.replace(' sur ','/')
-        clean_place = clean_place.replace(' arrondissement ','')
+        #clean_place = clean_place.replace(' sur ','/')
+        #clean_place = clean_place.replace(' arrondissement ','')
         temp2 = []
         for t in clean_place.split(","):
             t = t.lstrip()
@@ -66,6 +70,7 @@ def clean_date(la_date):
         clean_date = la_date.replace("AND","-")
         clean_date = clean_date.replace("FROM AFT","à partir de")
         clean_date = clean_date.replace("AFT","après")
+        clean_date = clean_date.replace("ABT","environ")
         clean_date = clean_date.replace("BET","")
         clean_date = clean_date.replace("FROM","")
         clean_date = clean_date.replace("TO","-")
@@ -102,24 +107,7 @@ def clean_type(le_type):
         elif    le_type == "Separation" : le_type == "Séparation"
         elif    le_type == "Custom event" : le_type = "Divers"
     return le_type
-#===========================================================================================
-def traduction_mois_numero(texte):
-    texte = texte.lower()
-    texte = texte.replace("janvier","01")
-    texte = texte.replace("février","02")
-    texte = texte.replace("mars","03")
-    texte = texte.replace("avril","04")
-    texte = texte.replace("mai","05")
-    texte = texte.replace("juin","06")
-    texte = texte.replace("juillet","07")
-    texte = texte.replace("août","08")
-    texte = texte.replace("septembre","09")
-    texte = texte.replace("octobre","10")
-    texte = texte.replace("novembre","11")
-    texte = texte.replace("décembre","12")
-    texte = texte.replace(" ","/")    
-    return texte
-#===========================================================================================
+#===========================================================================================     
 def convert_note(note_html):
     isVerbose = False
 #------------------------------------------------------------------------------------------------------------- 
@@ -209,6 +197,29 @@ def convert_note(note_html):
 
     return les_textes,les_href
 #===========================================================================================
+def get_table_column_data(sql_obj,table,column):
+    le_select = f'SELECT DISTINCT {table}.* FROM {table} '
+    sql_obj.execute(le_select)
+    les_rows = []
+    for row in sql_obj.fetchall():
+        t = dict(row)[column]
+        t = t.lower()
+        t = t.replace(" ","")
+        t = t.replace("-","")
+        les_rows.append([t,row])
+    return les_rows
+#===========================================================================================   
+def search_string_in_table_reference(les_rows,la_string):
+    s = la_string.lower()
+    s = s.replace(" ","")
+    s = s.replace("-","")
+    sl = s.split(",")
+    
+    for item in les_rows:
+        for st in sl :
+            if st == item[0] : return item[1]
+    return None
+#===========================================================================================
 def sqlite_gedcom2sql(dir):
 #===========================================================================================
 # DEBUT
@@ -228,13 +239,31 @@ def sqlite_gedcom2sql(dir):
         print("pas de fichier .ged dans",dir)
         exit()
 
+    # check if dB exists ... if yes return
     database_file = "/Users/bernardconti/Downloads/"+ gedcom_fichier.replace(".ged",".db")
+    #print(database_file)
     if not os.path.isfile(database_file):
     #if True:
         print(120 * "=")
         print ("Génération de la base de donnée SQL à partir de " + gedcom_fichier)
         print(120 * "=")
         print("")
+        #===========================================================================================
+        # ouverture de la base GEODB
+        GEO_db = icloud+'/MesProgrammes/Geography_data/geo_data.db'
+        if not os.path.isfile(GEO_db): 
+            print(GEO_db,"not found")
+            exit()
+        else:
+            connection_GEO_obj = sqlite3.connect(GEO_db)
+            connection_GEO_obj.row_factory = sqlite3.Row
+            sql_GEO = connection_GEO_obj.cursor()
+            print(f"Opened GEO database {GEO_db} with version {sqlite3.sqlite_version} successfully.")
+            les_départements_régions = get_table_column_data(sql_GEO,"DÉPARTEMENTS","département")
+            print("Nombre de départements",len(les_départements_régions))
+            les_pays = get_table_column_data(sql_GEO,"PAYS","pays")
+            print("Nombre de pays",len(les_pays))
+
         #===========================================================================================
         # Clean Gedcom File
         #if gedcom_fichier.split("_")[0] !="clean":
@@ -285,13 +314,9 @@ def sqlite_gedcom2sql(dir):
             #print("Pass 2 : fait")
             full_gedcom_fichier = clean_gedcom_fichier_2
 
-        #===========================================================================================
-        # Connect to the SQLite database (or create it if it doesn't exist)
-        #===========================================================================================
-        database_file = "/Users/bernardconti/Downloads/"+ gedcom_fichier.replace(".ged",".db")
-        if not os.path.isfile(database_file):
+            #===========================================================================================
             # Connect to the SQLite database (or create it if it doesn't exist)
-
+            #===========================================================================================
             connection_obj = sqlite3.connect(database_file)
             print(f"Opened SQLite database {database_file} with version {sqlite3.sqlite_version} successfully.")
             sql = connection_obj.cursor()
@@ -306,10 +331,16 @@ def sqlite_gedcom2sql(dir):
                     surnom TEXT,
                     sexe CHAR(1),
                     bdate TEXT,
-                    bplace TEXT,
+                    bville TEXT,
+                    bdepartement TEXT,
+                    bregion TEXT,
+                    bpays TEXT,
                     isdead CHAR(1),
                     ddate TEXT,
-                    dplace TEXT,
+                    dville TEXT,
+                    ddepartement TEXT,
+                    dregion TEXT,
+                    dpays TEXT,
                     cause TEXT
                 );"""
             sql.execute("DROP TABLE IF EXISTS INDI")
@@ -361,14 +392,14 @@ def sqlite_gedcom2sql(dir):
             #-------------------------------------------------
             file_input = open(clean_gedcom_fichier_2, 'r', encoding='utf8',errors='ignore')
             #========================================================================================
-            #ZOB
             #=================================================================================================
             # First pass = INDI
             #=================================================================================================
             idx = 0
             idf = 0
             fam_id = None
-            MH_indi = [None] * 12
+            MH_indi = [None] * 18
+            MH_indi[6] = "?? ?? ????"
             isFirst_indi = True
             isFirst_obje_file = True
             isFirst_even =  True
@@ -383,15 +414,18 @@ def sqlite_gedcom2sql(dir):
                         if isFirst_indi : isFirst_indi = False
                         else:
                             INDI_row = '''
-                            INSERT INTO INDI (indi_id,nom,prenom,prenoms,surnom,sexe,bdate,bplace,isdead,ddate,dplace,cause) 
-                            VALUES (?,?,?,?,?,?,?,?,?,?,?,?);
-                            '''
+                            INSERT INTO INDI (indi_id,nom,prenom,prenoms,surnom,sexe,bdate,bville,bdepartement,bregion,bpays,isdead,ddate,dville,ddepartement,dregion,dpays,cause) 
+                            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?);
+                                        '''
                             INDI_data = (MH_indi[0],MH_indi[1],MH_indi[2],MH_indi[3],MH_indi[4],MH_indi[5],
-                                         MH_indi[6],MH_indi[7],MH_indi[8],MH_indi[9],MH_indi[10],MH_indi[11]) 
+                                         MH_indi[6],MH_indi[7],MH_indi[8],MH_indi[9],MH_indi[10],MH_indi[11],
+                                         MH_indi[12],MH_indi[13],MH_indi[14],MH_indi[15],MH_indi[16],MH_indi[17]) 
                             sql.execute(INDI_row, INDI_data)
                             
                         idx = idx + 1
-                        MH_indi = [None] * 12
+                        MH_indi = [None] * 18
+                        MH_indi[6] = "?? ?? ????"
+
                         indi_id = int(MH_records[1][2:-1])
                         MH_indi[0] = indi_id
 
@@ -406,7 +440,8 @@ def sqlite_gedcom2sql(dir):
                         MH_indi[5] = MH_records[2]
                 
                     elif SUBREC_1_KEY == "DEAT":
-                        MH_indi[8] = "Y"
+                        MH_indi[11] = "Y"
+                        MH_indi[12] = "?? ?? ????"
 
                     elif SUBREC_1_KEY == "FAMC":
                         FAMC_row = 'INSERT INTO FAMC (indi_id,fam_id,isAdopted) VALUES (?,?,?);'
@@ -502,14 +537,47 @@ def sqlite_gedcom2sql(dir):
                     elif SUBREC_1_KEY == "BIRT":
 
                         if SUBREC_2_KEY == "DATE"    :  MH_indi[6] = clean_date(" ".join(MH_records[2:]))
-                        elif SUBREC_2_KEY == "PLAC"  : MH_indi[7]  = clean_place(" ".join(MH_records[2:]))
-                            
+                        elif SUBREC_2_KEY == "PLAC"  : 
+                            #ZOB
+                            la_place = clean_place(" ".join(MH_records[2:]))
+                            #7 : bville
+                            MH_indi[7] = la_place.split(",")[0].lstrip().title()
+                            #8 : bdepartement, 9:bregion 
+                            r = search_string_in_table_reference(les_départements_régions,la_place)
+                            if r : 
+                                MH_indi[8] = r["département"]
+                                MH_indi[9] = r["région"]
+                            else:  
+                                MH_indi[8] = la_place
+                                MH_indi[9]  = "pas de B_DEP"
+                            #10: bpay
+                            r = search_string_in_table_reference(les_pays,la_place)
+                            if r : MH_indi[10] = f'{r["pays"]} {r["drapeau"]}'
+                            else : MH_indi[10]  = "B_PAYS"
+      
                     elif SUBREC_1_KEY == "DEAT":  
 
-                        if SUBREC_2_KEY == "DATE"    : MH_indi[9]   = clean_date(" ".join(MH_records[2:]))
-                        elif SUBREC_2_KEY == "PLAC"  : MH_indi[10]  = " ".join(MH_records[2:])
+                        if SUBREC_2_KEY == "DATE"    : MH_indi[12]   = clean_date(" ".join(MH_records[2:]))
+                        elif SUBREC_2_KEY == "PLAC"  : 
+                        #13: dville,14:ddepartement,15:dregion,16:dpays
+                            la_place = clean_place(" ".join(MH_records[2:]))
+                            #7 : bville
+                            MH_indi[13] = la_place.split(",")[0].lstrip().title()
+                            #8 : bdepartement, 9:bregion 
+                            r = search_string_in_table_reference(les_départements_régions,la_place)
+                            if r : 
+                                MH_indi[14] = r["département"]
+                                MH_indi[15] = r["région"]
+                            else:  
+                                MH_indi[15] = la_place
+                                MH_indi[16]  = "pas de B_DEP"
+                            #10: bpay
+                            r = search_string_in_table_reference(les_pays,la_place)
+                            if r : MH_indi[16] = f'{r["pays"]} {r["drapeau"]}'
+                            else : MH_indi[16]  = "B_PAYS"
+                        
                         elif SUBREC_2_KEY == "CAUS":
-                            if len(MH_records) > 2   :  MH_indi[11] = " ".join(MH_records[2:])
+                            if len(MH_records) > 2   :  MH_indi[17] = " ".join(MH_records[2:])
 
                     elif SUBREC_2_KEY == "PEDI" and indi_id and famc_id:
                             update_statement = f'UPDATE FAMC SET isAdopted="Adopted" WHERE indi_id = {indi_id} AND fam_id = {famc_id}'
@@ -544,11 +612,12 @@ def sqlite_gedcom2sql(dir):
 
             #INDI
             INDI_row = '''
-            INSERT INTO INDI (indi_id,nom,prenom,prenoms,surnom,sexe,bdate,bplace,isdead,ddate,dplace,cause) 
-            VALUES (?,?,?,?,?,?,?,?,?,?,?,?);
+            INSERT INTO INDI (indi_id,nom,prenom,prenoms,surnom,sexe,bdate,bville,bdepartement,bregion,bpays,isdead,ddate,dville,ddepartement,dregion,dpays,cause) 
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?);
                         '''
             INDI_data = (MH_indi[0],MH_indi[1],MH_indi[2],MH_indi[3],MH_indi[4],MH_indi[5],
-                            MH_indi[6],MH_indi[7],MH_indi[8],MH_indi[9],MH_indi[10],MH_indi[11]) 
+                            MH_indi[6],MH_indi[7],MH_indi[8],MH_indi[9],MH_indi[10],MH_indi[11],
+                            MH_indi[12],MH_indi[13],MH_indi[14],MH_indi[15],MH_indi[16],MH_indi[17]) 
             sql.execute(INDI_row, INDI_data)
 
             #OBJE
@@ -580,6 +649,11 @@ def sqlite_gedcom2sql(dir):
            
             file_input.close()
             #========================================================================================
+            # processing GEP data
+            #geographie_excel = icloud+'/MesProgrammes/Geography_data/geo_data.xlsx'
+            #add_GEO_to_sql(sql,geographie_excel)
+            #========================================================================================
+
             # Close the connection to the database
             connection_obj.commit()
             connection_obj.close()  
